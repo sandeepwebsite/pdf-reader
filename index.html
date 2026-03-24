@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro PDF Editor | Color Fix</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { --bg: #f0f2f5; --accent: #007bff; --glass: rgba(255, 255, 255, 0.98); }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        #loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; backdrop-filter: blur(5px); }
+        .spinner { width: 40px; height: 40px; border: 4px solid #ddd; border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .toolbar { background: var(--glass); padding: 8px 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #ccc; z-index: 1000; flex-wrap: wrap; }
+        .tool-group { display: flex; background: #eee; border-radius: 8px; padding: 4px; gap: 4px; }
+        button { border: none; background: transparent; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        button.active { background: var(--accent); color: white; }
+
+        .cursor-pen { cursor: url('https://img.icons8.com/ios-filled/24/000000/pen.png') 0 24, crosshair !important; }
+        .cursor-highlighter { cursor: url('https://img.icons8.com/ios-filled/24/000000/marker.png') 0 24, crosshair !important; }
+        .cursor-eraser { cursor: url('https://img.icons8.com/ios-filled/24/000000/eraser.png') 0 24, cell !important; }
+        .cursor-text { cursor: text !important; }
+
+        #viewer { flex: 1; overflow: auto; padding: 50px 20px; display: flex; flex-direction: column; align-items: center; gap: 50px; }
+        .page-wrapper { position: relative; transition: transform 0.3s ease; transform: scale(var(--zoom, 1)); transform-origin: top center; }
+        .page-body { position: relative; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: transform 0.4s ease; }
+        .canvas-container { position: absolute !important; top: 0; left: 0; }
+        
+        .rotate-btn { position: absolute; right: -50px; top: 0; width: 40px; height: 40px; border-radius: 50%; background: white; border: 1px solid #ddd; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        #delete-btn { color: #dc3545; display: none; font-size: 1.2rem; }
+
+        .zoom-controls { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1001; }
+        .zoom-btn { width: 45px; height: 45px; border-radius: 50%; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="loader"><div class="spinner"></div><p style="margin-top:10px">Applying fixes...</p></div>
+
+<div class="toolbar">
+    <button onclick="document.getElementById('file-input').click()"><i class="fas fa-file-upload"></i></button>
+    <div class="tool-group">
+        <button class="tool-btn active" data-tool="select"><i class="fas fa-mouse-pointer"></i></button>
+        <button class="tool-btn" data-tool="pen"><i class="fas fa-pen"></i></button>
+        <button class="tool-btn" data-tool="highlighter"><i class="fas fa-highlighter"></i></button>
+        <button class="tool-btn" data-tool="eraser"><i class="fas fa-eraser"></i></button>
+    </div>
+    <div class="tool-group">
+        <button class="tool-btn" data-tool="rect"><i class="fas fa-vector-square"></i></button>
+        <button class="tool-btn" data-tool="star"><i class="fas fa-star"></i></button>
+        <button class="tool-btn" data-tool="text"><i class="fas fa-font"></i></button>
+    </div>
+    <input type="color" id="color-picker" value="#007bff">
+    <button id="delete-btn" onclick="deleteSelection()"><i class="fas fa-trash-alt"></i></button>
+    <button onclick="exportPDF()" style="margin-left: auto; background: #28a745; color: white; padding: 8px 15px; border-radius: 5px;">Export PDF</button>
+</div>
+
+<div id="viewer" style="--zoom: 1;"></div>
+
+<div class="zoom-controls">
+    <button class="zoom-btn" onclick="applyZoom(0.1)"><i class="fas fa-plus"></i></button>
+    <button class="zoom-btn" onclick="applyZoom(-0.1)"><i class="fas fa-minus"></i></button>
+</div>
+
+<input type="file" id="file-input" hidden accept="application/pdf">
+
+<script>
+    const { jsPDF } = window.jspdf;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    let pdfDoc = null, canvases = [], currentTool = 'select', currentColor = '#007bff', zoomLevel = 1.0, isShift = false;
+    let rotations = {};
+
+    window.onkeydown = e => { 
+        if(e.key === 'Shift') isShift = true;
+        if(e.key === 'Delete' || e.key === 'Backspace') deleteSelection();
+    };
+    window.onkeyup = () => isShift = false;
+
+    // FIX: Live Color Updates
+    document.getElementById('color-picker').oninput = (e) => {
+        currentColor = e.target.value;
+        canvases.forEach(c => {
+            // Update brush color if drawing
+            if (c.freeDrawingBrush) {
+                c.freeDrawingBrush.color = (currentTool === 'highlighter') ? currentColor + '80' : currentColor;
+            }
+            // Update currently selected object color
+            const active = c.getActiveObjects();
+            active.forEach(obj => {
+                if (obj.type === 'i-text' || obj.type === 'text') obj.set('fill', currentColor);
+                else obj.set('stroke', currentColor);
+            });
+            c.requestRenderAll();
+        });
+    };
+
+    document.getElementById('file-input').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        document.getElementById('loader').style.display = 'flex';
+        const reader = new FileReader();
+        reader.onload = async function() {
+            pdfDoc = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
+            await initViewer();
+            document.getElementById('loader').style.display = 'none';
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    async function initViewer() {
+        const viewer = document.getElementById('viewer');
+        viewer.innerHTML = ''; canvases = []; rotations = {};
+        const firstPage = await pdfDoc.getPage(1);
+        zoomLevel = Math.min((window.innerWidth * 0.8) / firstPage.getViewport({scale:1.5}).width, 1.0);
+        viewer.style.setProperty('--zoom', zoomLevel);
+
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+            rotations[i] = 0;
+            const page = await pdfDoc.getPage(i);
+            const vp = page.getViewport({ scale: 1.5 });
+            const wrap = document.createElement('div'); wrap.className = 'page-wrapper'; wrap.id = `w-${i}`;
+            const body = document.createElement('div'); body.className = 'page-body'; body.id = `b-${i}`;
+            body.style.width = vp.width + 'px'; body.style.height = vp.height + 'px';
+            const bg = document.createElement('canvas'); bg.width = vp.width; bg.height = vp.height;
+            const fg = document.createElement('canvas'); fg.id = `fg-${i}`;
+            const rot = document.createElement('button'); rot.className = 'rotate-btn'; rot.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            rot.onclick = () => {
+                rotations[i] = (rotations[i] + 90) % 360;
+                body.style.transform = `rotate(${rotations[i]}deg)`;
+                wrap.style.height = (rotations[i] % 180 !== 0) ? body.offsetWidth + 'px' : 'auto';
+                wrap.style.margin = (rotations[i] % 180 !== 0) ? '40px 0' : '0 0 60px 0';
+            };
+            body.append(bg, fg); wrap.append(body, rot); viewer.appendChild(wrap);
+            await page.render({ canvasContext: bg.getContext('2d'), viewport: vp }).promise;
+            const fCanvas = new fabric.Canvas(fg.id, { width: vp.width, height: vp.height });
+            setupFabric(fCanvas); canvases.push(fCanvas);
+        }
+        refreshTools();
+    }
+
+    function setupFabric(fCanvas) {
+        let drawing = false, obj, sx, sy;
+
+        fCanvas.on('selection:created', () => { if(currentTool === 'select') document.getElementById('delete-btn').style.display = 'block'; });
+        fCanvas.on('selection:cleared', () => document.getElementById('delete-btn').style.display = 'none');
+
+        fCanvas.on('path:created', (opt) => {
+            if (isShift) {
+                const p = opt.path.path;
+                if (p.length > 1) opt.path.set({ path: [['M', p[0][1], p[0][2]], ['L', p[p.length-1][1], p[p.length-1][2]]] });
+            }
+            fCanvas.renderAll();
+        });
+
+        fCanvas.on('mouse:down', (o) => {
+            if (currentTool === 'select') return;
+            if (currentTool === 'eraser') { if (o.target) fCanvas.remove(o.target); return; }
+            
+            let ptr = fCanvas.getPointer(o.e); sx = ptr.x; sy = ptr.y;
+            
+            if (currentTool === 'text') {
+                const text = new fabric.IText('Text...', { left: sx, top: sy, fontSize: 24, fill: currentColor, evented: true });
+                fCanvas.add(text); fCanvas.setActiveObject(text); text.enterEditing(); text.selectAll();
+                return;
+            }
+
+            drawing = true;
+            if (currentTool === 'rect') obj = new fabric.Rect({ left: sx, top: sy, width: 1, height: 1, fill: 'transparent', stroke: currentColor, strokeWidth: 3 });
+            else if (currentTool === 'star') obj = new fabric.Polygon(getStar(5, 1, 0.5), { left: sx, top: sy, fill: 'transparent', stroke: currentColor, strokeWidth: 3, originX: 'center', originY: 'center' });
+            if(obj) { obj.evented = true; fCanvas.add(obj); }
+        });
+
+        fCanvas.on('mouse:move', (o) => {
+            if (!drawing) return;
+            let p = fCanvas.getPointer(o.e);
+            if (currentTool === 'rect') obj.set({ width: Math.abs(sx - p.x), height: Math.abs(sy - p.y), left: Math.min(sx, p.x), top: Math.min(sy, p.y) });
+            else if (currentTool === 'star') {
+                let d = Math.sqrt(Math.pow(sx-p.x,2)+Math.pow(sy-p.y,2));
+                obj.set({ scaleX: d/10, scaleY: d/10 });
+            }
+            fCanvas.renderAll();
+        });
+        fCanvas.on('mouse:up', () => drawing = false);
+    }
+
+    function getStar(s, o, r) {
+        let rot = Math.PI/2*3, step = Math.PI/s, pts = [];
+        for(let i=0; i<s; i++){
+            pts.push({x: Math.cos(rot)*o, y: Math.sin(rot)*o}); rot+=step;
+            pts.push({x: Math.cos(rot)*r, y: Math.sin(rot)*r}); rot+=step;
+        }
+        return pts;
+    }
+
+    function deleteSelection() {
+        canvases.forEach(c => {
+            const act = c.getActiveObjects();
+            if (act.length > 0) { c.remove(...act); c.discardActiveObject(); c.requestRenderAll(); }
+        });
+    }
+
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTool = btn.dataset.tool;
+            refreshTools();
+        };
+    });
+
+    function applyZoom(v) { zoomLevel += v; document.getElementById('viewer').style.setProperty('--zoom', zoomLevel); }
+
+    function refreshTools() {
+        canvases.forEach(c => {
+            c.upperCanvasEl.className = `upper-canvas cursor-${currentTool}`;
+            c.isDrawingMode = (currentTool === 'pen' || currentTool === 'highlighter');
+            if (c.isDrawingMode) {
+                c.freeDrawingBrush = new fabric.PencilBrush(c);
+                c.freeDrawingBrush.color = (currentTool === 'highlighter') ? currentColor + '80' : currentColor;
+                c.freeDrawingBrush.width = (currentTool === 'highlighter') ? 25 : 3;
+            }
+            c.selection = (currentTool === 'select');
+            c.forEachObject(o => { o.selectable = (currentTool === 'select'); o.evented = true; o.hasControls = o.selectable; });
+            c.requestRenderAll();
+        });
+    }
+
+    async function exportPDF() {
+        document.getElementById('loader').style.display = 'flex';
+        const doc = new jsPDF({ orientation: 'p', unit: 'px', format: [canvases[0].width, canvases[0].height] });
+        for (let i = 0; i < canvases.length; i++) {
+            if (i > 0) doc.addPage([canvases[i].width, canvases[i].height]);
+            const bg = document.querySelectorAll('.page-body canvas:first-child')[i];
+            doc.addImage(bg.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, canvases[i].width, canvases[i].height, null, null, rotations[i+1]);
+            doc.addImage(canvases[i].toDataURL({ format: 'png' }), 'PNG', 0, 0, canvases[i].width, canvases[i].height, null, null, rotations[i+1]);
+        }
+        doc.save("annotated_fixed.pdf");
+        document.getElementById('loader').style.display = 'none';
+    }
+</script>
+</body>
+</html>
