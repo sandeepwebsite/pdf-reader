@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-pro-v1.0.5'; // Increment this to trigger update
+const CACHE_NAME = 'pdf-pro-v1.0.6'; // Increment this to trigger update
 const ASSETS = [
   './',
   './index.html',
