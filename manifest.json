@@ -1,0 +1,16 @@
+{
+  "name": "Reader's Choice",
+  "short_name": "ReaderChoice",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#007bff",
+  "description": "Professional PDF Editor with offline support.",
+  "icons": [
+    {
+      "src": "images/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
