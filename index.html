@@ -8,6 +8,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007bff">
     <style>
       :root { --bg: #f0f2f5; --toolbar: #ffffff; --text: #1c1e21; --accent: #007bff; --danger: #dc3545; }
       body.dark-mode { --bg: #18191a; --toolbar: #242526; --text: #e4e6eb; }
@@ -77,6 +80,40 @@
       .zoom-controls { position: fixed; bottom: 20px; right: 20px; display: none; flex-direction: column; gap: 10px; z-index: 1001; }
       .zoom-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--toolbar); border: 1px solid #ccc; cursor: pointer; }
       #loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
+
+
+        /* Footer Styling */
+      .pwa-footer {
+        position: fixed;
+        bottom: 5px;
+        left: 10px;
+        font-size: 10px;
+        opacity: 0.6;
+        z-index: 2001;
+        pointer-events: none;
+      }
+
+      #update-banner {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--accent);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 3001;
+        cursor: pointer;
+        font-weight: bold;
+        animation: slideUp 0.3s ease-out;
+      }
+      
+      @keyframes slideUp {
+        from { bottom: -50px; }
+        to { bottom: 20px; }
+      }
     </style>
   </head>
   <body>
@@ -144,6 +181,16 @@
     </div>
 
     <input type="file" id="file-input" hidden accept="application/pdf" />
+
+    <div id="landing-page">
+       <div class="pwa-footer">
+         Version: <span id="app-version">Loading...</span>
+       </div>
+    </div>
+
+    <div id="update-banner" onclick="window.location.reload()">
+      <i class="fas fa-sync-alt"></i> New Version Available! Click to Update
+    </div>
 
     <script>
       const { jsPDF } = window.jspdf;
@@ -452,6 +499,27 @@
       function setLoader(s, t) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; document.getElementById('loader-msg').innerText = t; }
       function initUI() { document.getElementById('landing-page').style.display = 'none'; document.getElementById('main-toolbar').style.display = 'flex'; document.getElementById('viewer').style.display = 'flex'; document.getElementById('zoom-ui').style.display = 'flex'; }
       document.querySelectorAll('.tool-btn').forEach(btn => btn.onclick = () => switchTool(btn.dataset.tool));
+
+
+      const APP_VERSION = "1.0.5";
+      document.getElementById('app-version').innerText = APP_VERSION;
+      
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').then(reg => {
+            // Check for updates every time the app is opened
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New version found and installed!
+                  document.getElementById('update-banner').style.display = 'block';
+                }
+              };
+            };
+          });
+        });
+      }
     </script>
   </body>
 </html>
