@@ -1,5 +1,5 @@
 // Increment version to trigger an update for users
-const CACHE_NAME = 'pdf-pro-v1.0.7'; 
+const CACHE_NAME = 'pdf-pro-v1.0.8'; 
 
 const ASSETS = [
   './',
