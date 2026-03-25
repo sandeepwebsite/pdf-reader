@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>PDF Editor Pro</title>
@@ -11,518 +11,407 @@
 
     <link rel="icon" type="image/png" href="./images/logo.png">
     <link rel="apple-touch-icon" href="./images/logo.png">
-    
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#007bff">
+
     <style>
-      :root { --bg: #f0f2f5; --toolbar: #ffffff; --text: #1c1e21; --accent: #007bff; --danger: #dc3545; }
-      body.dark-mode { --bg: #18191a; --toolbar: #242526; --text: #e4e6eb; }
-      body.dark-mode .pdf-canvas { filter: invert(0.9) hue-rotate(180deg); }
-      
-      body { margin: 0; font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-      /* Cursors */
-        /* .cursor-select { cursor: default; }
-        .cursor-pen { cursor: url('https://cdn-icons-png.flaticon.com/32/1250/1250615.png') 0 32, auto !important; }
-        .cursor-highlighter { cursor: url('https://cdn-icons-png.flaticon.com/32/1164/1164693.png') 0 32, auto !important; }
-        .cursor-eraser { cursor: url('https://cdn-icons-png.flaticon.com/32/483/483907.png') 0 32, auto !important; }
-        .cursor-laser { cursor: url('https://cdn-icons-png.flaticon.com/32/1883/1883341.png') 16 16, auto !important; } */
-      /* Toolbar */
-      .toolbar { background: var(--toolbar); padding: 8px; display: none; flex-wrap: wrap; align-items: center; gap: 8px; border-bottom: 1px solid rgba(0,0,0,0.1); z-index: 1000; }
-      .tool-group { display: flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 2px; gap: 2px; align-items: center; }
-      
-      button, select { border: none; background: transparent; color: var(--text); padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
-      button.active { background: var(--accent); color: white; }
-      /* The Laser Glow Effect */
-      .laser-glow {
-        filter: 
-          drop-shadow(0 0 2px #fff) 
-          drop-shadow(0 0 5px #ff0000) 
-          drop-shadow(0 0 10px #ff0000) 
-          drop-shadow(0 0 20px #ff4d4d);
+        :root { --bg: #f0f2f5; --toolbar: #ffffff; --text: #1c1e21; --accent: #007bff; --danger: #dc3545; }
+        body.dark-mode { --bg: #18191a; --toolbar: #242526; --text: #e4e6eb; }
+        body.dark-mode .pdf-canvas { filter: invert(0.9) hue-rotate(180deg); }
         
-        /* Optional: Add a slight "pulse" to make it look active */
-        animation: laser-pulse 1.5s infinite alternate;
-      }
-      
-      @keyframes laser-pulse {
-        from {
-          filter: 
-            drop-shadow(0 0 2px #fff) 
-            drop-shadow(0 0 5px #ff0000) 
-            drop-shadow(0 0 10px #ff0000);
-        }
-        to {
-          filter: 
-            drop-shadow(0 0 3px #fff) 
-            drop-shadow(0 0 8px #ff0000) 
-            drop-shadow(0 0 15px #ff0000) 
-            drop-shadow(0 0 25px #ff4d4d);
-        }
-      }
-      /* THE ALIGNMENT FIX: Position Relative + Overflow Hidden */
-      #viewer { flex: 1; overflow-y: auto; padding: 20px; display: none; flex-direction: column; align-items: center; gap: 30px; }
-      .page-wrapper { 
-        position: relative; 
-        background: white; 
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
-        line-height: 0; 
-        display: block;
-      }
-      
-      /* Force Fabric container to snap to top-left */
-      .canvas-container { 
-        position: absolute !important; 
-        top: 0 !important; 
-        left: 0 !important; 
-      }
+        body { margin: 0; font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .toolbar { background: var(--toolbar); padding: 8px; display: none; flex-wrap: wrap; align-items: center; gap: 8px; border-bottom: 1px solid rgba(0,0,0,0.1); z-index: 1000; }
+        .tool-group { display: flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 2px; gap: 2px; align-items: center; }
+        
+        button, select { border: none; background: transparent; color: var(--text); padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        button.active { background: var(--accent); color: white; }
 
-      #landing-page { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg); z-index: 2000; }
-      .recent-list { margin-top: 20px; width: 80%; max-width: 400px; }
-      .recent-item { background: var(--toolbar); padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #ddd; }
+        #viewer { flex: 1; overflow-y: auto; padding: 20px; display: none; flex-direction: column; align-items: center; gap: 30px; }
+        .page-wrapper { position: relative; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); line-height: 0; display: block; }
+        .canvas-container { position: absolute !important; top: 0 !important; left: 0 !important; }
 
-      .zoom-controls { position: fixed; bottom: 20px; right: 20px; display: none; flex-direction: column; gap: 10px; z-index: 1001; }
-      .zoom-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--toolbar); border: 1px solid #ccc; cursor: pointer; }
-      #loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
+        #landing-page { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg); z-index: 2000; }
+        .recent-list { margin-top: 20px; width: 80%; max-width: 400px; }
+        .recent-item { background: var(--toolbar); padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #ddd; }
 
+        .zoom-controls { position: fixed; bottom: 20px; right: 20px; display: none; flex-direction: column; gap: 10px; z-index: 1001; }
+        .zoom-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--toolbar); border: 1px solid #ccc; cursor: pointer; }
+        #loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
 
-        /* Footer Styling */
-      .pwa-footer {
-        position: fixed;
-        bottom: 5px;
-        left: 10px;
-        font-size: 10px;
-        opacity: 0.6;
-        z-index: 2001;
-        pointer-events: none;
-      }
+        .pwa-footer { position: absolute; bottom: 15px; font-size: 12px; opacity: 0.6; }
 
-      #update-banner {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--accent);
-        color: white;
-        padding: 12px 24px;
-        border-radius: 30px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        z-index: 3001;
-        cursor: pointer;
-        font-weight: bold;
-        animation: slideUp 0.3s ease-out;
-      }
-      
-      @keyframes slideUp {
-        from { bottom: -50px; }
-        to { bottom: 20px; }
-      }
+        #update-banner { display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 12px 24px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 3001; cursor: pointer; font-weight: bold; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { bottom: -50px; } to { bottom: 20px; } }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div id="loader"><i class="fas fa-sync fa-spin fa-2x"></i><p id="loader-msg">Loading...</p></div>
     
     <div id="landing-page">
-      <div onclick="document.getElementById('file-input').click()" style="background:var(--toolbar); padding:40px; border-radius:20px; border:3px dashed #ccc; text-align:center; cursor:pointer; width:80%; max-width:400px;">
-        <i class="fas fa-file-pdf fa-4x" style="color:#e74c3c"></i>
-        <h3>Open PDF</h3>
-      </div>
-      <div class="recent-list" id="recent-list"></div>
+        <div onclick="document.getElementById('file-input').click()" style="background:var(--toolbar); padding:40px; border-radius:20px; border:3px dashed #ccc; text-align:center; cursor:pointer; width:80%; max-width:400px;">
+            <i class="fas fa-file-pdf fa-4x" style="color:#e74c3c"></i>
+            <h3>Open PDF</h3>
+        </div>
+        <div class="recent-list" id="recent-list"></div>
+        <div class="pwa-footer">Version: <span id="app-version">1.0.5</span></div>
     </div>
 
     <div class="toolbar" id="main-toolbar">
-      <button onclick="location.reload()"><i class="fas fa-home"></i></button>
-      
-      <div class="tool-group">
-        <button class="tool-btn active" data-tool="select"><i class="fas fa-mouse-pointer"></i></button>
-        <button class="tool-btn" data-tool="pen"><i class="fas fa-pen"></i></button>
-        <button class="tool-btn" data-tool="highlighter"><i class="fas fa-highlighter"></i></button>
-        <button class="tool-btn" data-tool="laser"><i class="fas fa-magic" style="color:red"></i></button>
-        <button class="tool-btn" data-tool="eraser"><i class="fas fa-eraser"></i></button>
-      </div>
-
-      <div class="tool-group">
-        <i class="fas fa-arrows-alt-h" style="font-size: 12px; margin-left: 5px;"></i>
-        <select id="size-dropdown" onchange="updateStyles()">
-          <option value="1">1 px</option>
-          <option value="2">2 px</option>
-          <option value="3" selected>3 px</option>
-          <option value="4">4 px</option>
-          <option value="5">5 px</option>
-          <option value="6">6 px</option>
-          <option value="7">7 px</option>
-          <option value="8">8 px</option>
-          <option value="9">9 px</option>
-          <option value="10">10 px</option>
+        <button onclick="location.reload()"><i class="fas fa-home"></i></button>
+        <div class="tool-group">
+            <button class="tool-btn active" data-tool="select"><i class="fas fa-mouse-pointer"></i></button>
+            <button class="tool-btn" data-tool="pen"><i class="fas fa-pen"></i></button>
+            <button class="tool-btn" data-tool="highlighter"><i class="fas fa-highlighter"></i></button>
+            <button class="tool-btn" data-tool="laser"><i class="fas fa-magic" style="color:red"></i></button>
+            <button class="tool-btn" data-tool="eraser"><i class="fas fa-eraser"></i></button>
+        </div>
+        <div class="tool-group">
+            <select id="size-dropdown" onchange="updateStyles()">
+                <option value="1">1 px</option><option value="3" selected>3 px</option><option value="5">5 px</option><option value="10">10 px</option>
+            </select>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" data-tool="rect"><i class="fas fa-square"></i></button>
+            <button class="tool-btn" data-tool="text"><i class="fas fa-font"></i></button>
+        </div>
+        <select id="color-selector" onchange="updateStyles()">
+            <option value="#000000">Black</option><option value="#ff0000">Red</option><option value="#0000ff">Blue</option>
         </select>
-      </div>
-
-      <div class="tool-group">
-        <button class="tool-btn" data-tool="rect"><i class="fas fa-square"></i></button>
-        <button class="tool-btn" data-tool="star"><i class="fas fa-star"></i></button>
-        <button class="tool-btn" data-tool="text"><i class="fas fa-font"></i></button>
-      </div>
-
-      <select id="color-selector" onchange="updateStyles()">
-        <option value="#000000">Black</option>
-        <option value="#ff0000">Red</option>
-        <option value="#0000ff">Blue</option>
-        <option value="#2ecc71">Green</option>
-      </select>
-
-      <button onclick="toggleDarkMode()"><i class="fas fa-adjust"></i></button>
-      <button id="delete-btn" onclick="deleteSelection()" style="display:none; color:var(--danger);"><i class="fas fa-trash"></i></button>
-      <button onclick="saveToDB()" style="color:#2ecc71;"><i class="fas fa-save"></i> Save</button>
-      <button onclick="exportPDF()" style="margin-left:auto; background:var(--accent); color:white;">Download</button>
+        <button onclick="toggleDarkMode()"><i class="fas fa-adjust"></i></button>
+        <button id="delete-btn" onclick="deleteSelection()" style="display:none; color:var(--danger);"><i class="fas fa-trash"></i></button>
+        <button onclick="saveToDB()" style="color:#2ecc71;"><i class="fas fa-save"></i> Save</button>
+        <button onclick="exportPDF()" style="margin-left:auto; background:var(--accent); color:white;">Download</button>
     </div>
 
     <div id="viewer"></div>
 
     <div class="zoom-controls" id="zoom-ui">
-      <button class="zoom-btn" onclick="applyZoom(0.1)"><i class="fas fa-plus"></i></button>
-      <button class="zoom-btn" onclick="applyZoom(-0.1)"><i class="fas fa-minus"></i></button>
+        <button class="zoom-btn" onclick="applyZoom(0.1)"><i class="fas fa-plus"></i></button>
+        <button class="zoom-btn" onclick="applyZoom(-0.1)"><i class="fas fa-minus"></i></button>
     </div>
 
     <input type="file" id="file-input" hidden accept="application/pdf" />
 
-    <div id="landing-page">
-       <div class="pwa-footer">
-         Version: <span id="app-version">Loading...</span>
-       </div>
-    </div>
-
     <div id="update-banner" onclick="window.location.reload()">
-      <i class="fas fa-sync-alt"></i> New Version Available! Click to Update
+        <i class="fas fa-sync-alt"></i> New Version Available! Click to Update
     </div>
 
-    <script>
-      const { jsPDF } = window.jspdf;
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+<script>
+  const { jsPDF } = window.jspdf;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-      let pdfDoc = null, canvases = [], currentTool = 'select', zoomLevel = 1.0, currentFileName = "", db, pageViewports = [], savedEdits = [];
+  let pdfDoc = null, canvases = [], currentTool = 'select', zoomLevel = 1.0, currentFileName = "", db, pageViewports = [], savedEdits = [];
 
-      // DB Setup
-      const dbReq = indexedDB.open("PDFProDB_V5", 1);
-      dbReq.onupgradeneeded = e => { e.target.result.createObjectStore("files", { keyPath: "name" }); };
-      dbReq.onsuccess = e => { db = e.target.result; loadRecentFiles(); };
+  // DB Setup
+  const dbReq = indexedDB.open("PDFProDB_V5", 1);
+  dbReq.onupgradeneeded = e => { e.target.result.createObjectStore("files", { keyPath: "name" }); };
+  dbReq.onsuccess = e => { db = e.target.result; loadRecentFiles(); };
 
-      function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+  function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
 
-      async function loadRecentFiles() {
-        const list = document.getElementById('recent-list');
-        const req = db.transaction("files", "readonly").objectStore("files").getAll();
-        req.onsuccess = () => {
-          list.innerHTML = req.result.length ? '<strong>Recent Files:</strong>' : '';
-          req.result.forEach(file => {
-            const item = document.createElement('div');
-            item.className = 'recent-item';
-            item.innerHTML = `<span>${file.name}</span><i class="fas fa-trash" style="color:red"></i>`;
-            item.onclick = (e) => {
-              if(e.target.classList.contains('fa-trash')) {
-                db.transaction("files", "readwrite").objectStore("files").delete(file.name);
-                loadRecentFiles();
-              } else {
-                openFile(file.pdfBytes, file.name, file.edits);
-              }
-            };
-            list.appendChild(item);
-          });
+  async function loadRecentFiles() {
+    const list = document.getElementById('recent-list');
+    const req = db.transaction("files", "readonly").objectStore("files").getAll();
+    req.onsuccess = () => {
+      list.innerHTML = req.result.length ? '<strong>Recent Files:</strong>' : '';
+      req.result.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'recent-item';
+        item.innerHTML = `<span>${file.name}</span><i class="fas fa-trash" style="color:red"></i>`;
+        item.onclick = (e) => {
+          if(e.target.classList.contains('fa-trash')) {
+            db.transaction("files", "readwrite").objectStore("files").delete(file.name);
+            loadRecentFiles();
+          } else {
+            openFile(file.pdfBytes, file.name, file.edits);
+          }
         };
-      }
-
-      if (currentTool === 'laser') {
-        c.freeDrawingBrush.shadow = new fabric.Shadow({
-          color: 'red',
-          blur: 15,
-          offsetX: 0,
-          offsetY: 0
-        });
-      }
-
-      document.getElementById('file-input').onchange = async e => {
-        const file = e.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async function() {
-          const bytes = new Uint8Array(this.result);
-          db.transaction("files", "readwrite").objectStore("files").put({ name: file.name, pdfBytes: bytes, edits: [] });
-          openFile(bytes, file.name, []);
-        };
-        reader.readAsArrayBuffer(file);
-      };
-
-      async function openFile(bytes, name, edits) {
-        setLoader(true, "Building Pages...");
-        currentFileName = name;
-        savedEdits = edits || [];
-        pdfDoc = await pdfjsLib.getDocument({data: bytes}).promise;
-        await buildViewer();
-        setLoader(false);
-        initUI();
-      }
-
-      async function buildViewer() {
-        const viewer = document.getElementById('viewer');
-        viewer.innerHTML = '';
-        canvases = new Array(pdfDoc.numPages).fill(null);
-        pageViewports = [];
-
-        for (let i = 1; i <= pdfDoc.numPages; i++) {
-          const page = await pdfDoc.getPage(i);
-          const vp = page.getViewport({ scale: 2.0 });
-          pageViewports.push(vp);
-
-          const wrap = document.createElement('div');
-          wrap.className = 'page-wrapper';
-          wrap.id = `page-wrap-${i}`;
-          wrap.dataset.pageNum = i;
-          
-          const displayWidth = Math.min(vp.width / 2, window.innerWidth - 40);
-          const displayHeight = (vp.height / vp.width) * displayWidth;
-          
-          wrap.style.width = displayWidth + "px";
-          wrap.style.height = displayHeight + "px";
-          wrap.innerHTML = `<div class="loading-placeholder">Page ${i}</div>`;
-          
-          viewer.appendChild(wrap);
-          observer.observe(wrap);
-        }
-      }
-
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const num = parseInt(entry.target.dataset.pageNum);
-            if (!canvases[num - 1]) renderPage(num, entry.target);
-          }
-        });
-      }, { root: document.getElementById('viewer'), threshold: 0.1 });
-
-      async function renderPage(num, container) {
-        const idx = num - 1;
-        const page = await pdfDoc.getPage(num);
-        const vp = pageViewports[idx];
-        
-        container.innerHTML = '';
-        const bg = document.createElement('canvas');
-        bg.className = 'pdf-canvas';
-        bg.width = vp.width; bg.height = vp.height;
-        bg.style.width = "100%"; bg.style.height = "100%";
-        
-        const fg = document.createElement('canvas');
-        fg.id = `fg-${num}`;
-
-        container.append(bg, fg);
-        await page.render({ canvasContext: bg.getContext('2d'), viewport: vp }).promise;
-
-        // ALIGNMENT FIX: Explicitly match container dimensions
-        const fCanvas = new fabric.Canvas(fg.id, { 
-          width: container.getBoundingClientRect().width, 
-          height: container.getBoundingClientRect().height,
-          selection: currentTool === 'select'
-        });
-
-        // Sync internal coordinate zoom (0.5 because PDF is 2.0 scale)
-        fCanvas.setZoom((container.offsetWidth / (vp.width/2)) * 0.5 * zoomLevel);
-        
-        setupCanvasEvents(fCanvas);
-        if (savedEdits[idx]) fCanvas.loadFromJSON(savedEdits[idx], () => fCanvas.renderAll());
-        
-        canvases[idx] = fCanvas;
-        applyToolToCanvas(fCanvas);
-      }
-
-      function setupCanvasEvents(c) {
-        c.on('selection:created', () => document.getElementById('delete-btn').style.display = 'block');
-        c.on('selection:cleared', () => document.getElementById('delete-btn').style.display = 'none');
-        c.on('path:created', (opt) => {
-          if (currentTool === 'laser') {
-            setTimeout(() => opt.path.animate('opacity', 0, { duration: 600, onComplete: () => c.remove(opt.path) }), 800);
-          }
-        });
-
-        let drawing = false, obj, sx, sy;
-        c.on('mouse:down', (o) => {
-          if (['select','pen','highlighter','eraser','laser'].includes(currentTool)) {
-            if(currentTool === 'eraser' && o.target) { c.remove(o.target); c.renderAll(); }
-            return;
-          }
-          let ptr = c.getPointer(o.e); sx = ptr.x; sy = ptr.y;
-          const color = document.getElementById('color-selector').value;
-          const size = parseInt(document.getElementById('size-dropdown').value);
-
-          if (currentTool === 'text') {
-            c.add(new fabric.IText('Double Click', { left: sx, top: sy, fill: color, fontSize: 20 }));
-            switchTool('select');
-            return;
-          }
-          drawing = true;
-          if (currentTool === 'rect') obj = new fabric.Rect({ left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
-          else if (currentTool === 'star') {
-            const pts = []; for(let i=0; i<10; i++){ let r = (i%2==0)?30:15; pts.push({x:Math.cos(Math.PI/2*3 + i*Math.PI/5)*r, y:Math.sin(Math.PI/2*3 + i*Math.PI/5)*r}); }
-            obj = new fabric.Polygon(pts, { left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
-          }
-          if(obj) c.add(obj);
-        });
-
-        c.on('mouse:move', (o) => {
-          if (!drawing) return;
-          let p = c.getPointer(o.e);
-          if (currentTool === 'rect') obj.set({ width: Math.abs(sx - p.x), height: Math.abs(sy - p.y), left: Math.min(sx, p.x), top: Math.min(sy, p.y) });
-          else if (currentTool === 'star') { let d = Math.sqrt(Math.pow(sx-p.x,2)+Math.pow(sy-p.y,2)); obj.set({ scaleX: d/30, scaleY: d/30 }); }
-          c.renderAll();
-        });
-        c.on('mouse:up', () => drawing = false);
-      }
-
-      function applyZoom(v) {
-        zoomLevel = Math.max(0.4, Math.min(3, zoomLevel + v));
-        canvases.forEach((c, i) => {
-          const wrap = document.getElementById(`page-wrap-${i+1}`);
-          const vp = pageViewports[i];
-          const nw = (vp.width/2) * zoomLevel;
-          const nh = (vp.height/2) * zoomLevel;
-          wrap.style.width = nw + "px";
-          wrap.style.height = nh + "px";
-          if (c) {
-            c.setDimensions({ width: nw, height: nh });
-            c.setZoom(0.5 * zoomLevel);
-          }
-        });
-      }
-
-      function applyToolToCanvas(c) {
-        const size = parseInt(document.getElementById('size-dropdown').value);
-        const color = document.getElementById('color-selector').value;
-        c.isDrawingMode = ['pen', 'highlighter', 'laser'].includes(currentTool);
-        c.selection = (currentTool === 'select');
-        
-        if (c.isDrawingMode) {
-          c.freeDrawingBrush = new fabric.PencilBrush(c);
-          c.freeDrawingBrush.color = currentTool === 'highlighter' ? color + '70' : (currentTool === 'laser' ? 'red' : color);
-          c.freeDrawingBrush.width = currentTool === 'highlighter' ? size * 5 : size;
-        }
-        c.forEachObject(o => { o.selectable = c.selection; o.evented = (c.selection || currentTool === 'eraser'); });
-      }
-
-      function switchTool(t) {
-        currentTool = t;
-        document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
-        canvases.forEach(c => { if(c) applyToolToCanvas(c); });
-      }
-
-      function updateStyles() {
-        canvases.forEach(c => { if(c) applyToolToCanvas(c); });
-      }
-
-      function saveToDB() {
-        const transaction = db.transaction("files", "readwrite");
-        const store = transaction.objectStore("files");
-        store.get(currentFileName).onsuccess = (e) => {
-          const data = e.target.result;
-          data.edits = canvases.map((c, i) => c ? c.toJSON() : savedEdits[i]);
-          store.put(data);
-          alert("Progress Saved!");
-        };
-      }
-
-    async function exportPDF() {
-      setLoader(true, "Finalizing PDF Layout...");
-      
-      // Create PDF in 'portrait' or 'landscape' based on the first page
-      const firstVP = pageViewports[0];
-      const orientation = firstVP.width > firstVP.height ? 'l' : 'p';
-      const doc = new jsPDF({ 
-        orientation: orientation, 
-        unit: 'pt', 
-        format: [firstVP.width / 2, firstVP.height / 2], // Original PDF size in points
-        compress: true 
+        list.appendChild(item);
       });
-    
-      for (let i = 0; i < pdfDoc.numPages; i++) {
-        if (i > 0) {
-          const vp = pageViewports[i];
-          doc.addPage([vp.width / 2, vp.height / 2], vp.width > vp.height ? 'l' : 'p');
-        }
-    
-        const page = await pdfDoc.getPage(i + 1);
-        const vp = pageViewports[i]; // This is the 2.0 scale viewport
-        
-        // Create a high-res temporary canvas for merging
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = vp.width; 
-        tempCanvas.height = vp.height;
-        const ctx = tempCanvas.getContext('2d');
-        
-        // 1. Render the original PDF background at high res
-        await page.render({ canvasContext: ctx, viewport: vp }).promise;
-        
-        // 2. Overlay the Fabric.js edits
-        const state = canvases[i] ? canvases[i].toJSON() : savedEdits[i];
-        if (state && state.objects.length > 0) {
-          const fOff = new fabric.StaticCanvas(null, { width: vp.width, height: vp.height });
-          
-          await new Promise(resolve => {
-            fOff.loadFromJSON(state, () => {
-              // IMPORTANT: Scale the edits up to match the 2.0 render scale
-              // If your zoomLevel was 1.0, the canvas was width/2. 
-              // We need to scale it by 2 to match the tempCanvas.width.
-              fOff.setZoom(2.0); 
-              fOff.renderAll();
-              resolve();
-            });
-          });
-    
-          const overlay = await new Promise(resolve => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.src = fOff.toDataURL({ format: 'png' });
-          });
-          
-          ctx.drawImage(overlay, 0, 0, vp.width, vp.height);
-          fOff.dispose();
-        }
-    
-        // 3. Add to doc using the point-size (vp.width/2) to prevent "zoomed" look
-        const imgData = tempCanvas.toDataURL('image/jpeg', 0.85);
-        doc.addImage(imgData, 'JPEG', 0, 0, vp.width / 2, vp.height / 2, null, 'FAST');
-        
-        // Clean up memory immediately
-        tempCanvas.width = 0;
-        tempCanvas.height = 0;
-      }
+    };
+  }
+
+  document.getElementById('file-input').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function() {
+      const bytes = new Uint8Array(this.result);
+      db.transaction("files", "readwrite").objectStore("files").put({ name: file.name, pdfBytes: bytes, edits: [] });
+      openFile(bytes, file.name, []);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  async function openFile(bytes, name, edits) {
+    setLoader(true, "Building Pages...");
+    currentFileName = name;
+    savedEdits = edits || [];
+    pdfDoc = await pdfjsLib.getDocument({data: bytes}).promise;
+    await buildViewer();
+    setLoader(false);
+    initUI();
+  }
+
+  async function buildViewer() {
+    const viewer = document.getElementById('viewer');
+    viewer.innerHTML = '';
+    canvases = new Array(pdfDoc.numPages).fill(null);
+    pageViewports = [];
+
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const vp = page.getViewport({ scale: 2.0 });
+      pageViewports.push(vp);
+
+      const wrap = document.createElement('div');
+      wrap.className = 'page-wrapper';
+      wrap.id = `page-wrap-${i}`;
+      wrap.dataset.pageNum = i;
       
-      doc.save(currentFileName.replace(".pdf", "_edited.pdf"));
-      setLoader(false);
+      const displayWidth = Math.min(vp.width / 2, window.innerWidth - 40);
+      const displayHeight = (vp.height / vp.width) * displayWidth;
+      
+      wrap.style.width = displayWidth + "px";
+      wrap.style.height = displayHeight + "px";
+      viewer.appendChild(wrap);
+      observer.observe(wrap);
     }
+  }
 
-      function deleteSelection() {
-        canvases.forEach(c => { if(c) { const act = c.getActiveObjects(); c.remove(...act); c.discardActiveObject(); c.renderAll(); } });
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const num = parseInt(entry.target.dataset.pageNum);
+        if (!canvases[num - 1]) renderPage(num, entry.target);
+      }
+    });
+  }, { root: document.getElementById('viewer'), threshold: 0.1 });
+
+  async function renderPage(num, container) {
+    const idx = num - 1;
+    const page = await pdfDoc.getPage(num);
+    const vp = pageViewports[idx];
+    
+    container.innerHTML = '';
+    const bg = document.createElement('canvas');
+    bg.className = 'pdf-canvas';
+    bg.width = vp.width; bg.height = vp.height;
+    bg.style.width = "100%"; bg.style.height = "100%";
+    
+    const fg = document.createElement('canvas');
+    fg.id = `fg-${num}`;
+
+    container.append(bg, fg);
+    await page.render({ canvasContext: bg.getContext('2d'), viewport: vp }).promise;
+
+    const fCanvas = new fabric.Canvas(fg.id, { 
+      width: container.offsetWidth, 
+      height: container.offsetHeight,
+      selection: currentTool === 'select'
+    });
+
+    fCanvas.setZoom((container.offsetWidth / (vp.width/2)) * 0.5 * zoomLevel);
+    
+    setupCanvasEvents(fCanvas);
+    if (savedEdits[idx]) fCanvas.loadFromJSON(savedEdits[idx], () => fCanvas.renderAll());
+    
+    canvases[idx] = fCanvas;
+    applyToolToCanvas(fCanvas);
+  }
+
+  function setupCanvasEvents(c) {
+    c.on('selection:created', () => document.getElementById('delete-btn').style.display = 'block');
+    c.on('selection:cleared', () => document.getElementById('delete-btn').style.display = 'none');
+    
+    c.on('path:created', (opt) => {
+      if (currentTool === 'laser') {
+        setTimeout(() => opt.path.animate('opacity', 0, { 
+          duration: 600, 
+          onComplete: () => c.remove(opt.path) 
+        }), 800);
+      }
+    });
+
+    let drawing = false, obj, sx, sy;
+
+    c.on('mouse:down', (o) => {
+      if (['select','pen','highlighter','eraser','laser'].includes(currentTool)) {
+        if(currentTool === 'eraser' && o.target) { c.remove(o.target); c.renderAll(); }
+        return;
+      }
+      let ptr = c.getPointer(o.e); sx = ptr.x; sy = ptr.y;
+      const color = document.getElementById('color-selector').value;
+      const size = parseInt(document.getElementById('size-dropdown').value);
+
+      if (currentTool === 'text') {
+        c.add(new fabric.IText('Type here', { left: sx, top: sy, fill: color, fontSize: 20 }));
+        switchTool('select');
+        return;
       }
 
-      function setLoader(s, t) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; document.getElementById('loader-msg').innerText = t; }
-      function initUI() { document.getElementById('landing-page').style.display = 'none'; document.getElementById('main-toolbar').style.display = 'flex'; document.getElementById('viewer').style.display = 'flex'; document.getElementById('zoom-ui').style.display = 'flex'; }
-      document.querySelectorAll('.tool-btn').forEach(btn => btn.onclick = () => switchTool(btn.dataset.tool));
+      drawing = true;
+      if (currentTool === 'rect') {
+        obj = new fabric.Rect({ left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
+      } else if (currentTool === 'star') {
+        const pts = []; 
+        for(let i=0; i<10; i++){ 
+          let r = (i%2==0)?30:15; 
+          pts.push({x:Math.cos(Math.PI/2*3 + i*Math.PI/5)*r, y:Math.sin(Math.PI/2*3 + i*Math.PI/5)*r}); 
+        }
+        obj = new fabric.Polygon(pts, { left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
+      }
+      if(obj) c.add(obj);
+    });
 
+    c.on('mouse:move', (o) => {
+      if (!drawing) return;
+      let p = c.getPointer(o.e);
+      if (currentTool === 'rect') {
+        obj.set({ width: Math.abs(sx - p.x), height: Math.abs(sy - p.y), left: Math.min(sx, p.x), top: Math.min(sy, p.y) });
+      } else if (currentTool === 'star') { 
+        let d = Math.sqrt(Math.pow(sx-p.x,2)+Math.pow(sy-p.y,2)); 
+        obj.set({ scaleX: d/30, scaleY: d/30 }); 
+      }
+      c.renderAll();
+    });
 
-      const APP_VERSION = "1.0.5";
-      document.getElementById('app-version').innerText = APP_VERSION;
+    c.on('mouse:up', () => { drawing = false; obj = null; });
+  }
+
+  function applyZoom(v) {
+    zoomLevel = Math.max(0.4, Math.min(3, zoomLevel + v));
+    canvases.forEach((c, i) => {
+      const wrap = document.getElementById(`page-wrap-${i+1}`);
+      const vp = pageViewports[i];
+      if (!wrap) return;
+      const nw = (vp.width/2) * zoomLevel;
+      const nh = (vp.height/2) * zoomLevel;
+      wrap.style.width = nw + "px";
+      wrap.style.height = nh + "px";
+      if (c) {
+        c.setDimensions({ width: nw, height: nh });
+        c.setZoom(0.5 * zoomLevel);
+      }
+    });
+  }
+
+  function applyToolToCanvas(c) {
+    const size = parseInt(document.getElementById('size-dropdown').value);
+    const color = document.getElementById('color-selector').value;
+    c.isDrawingMode = ['pen', 'highlighter', 'laser'].includes(currentTool);
+    c.selection = (currentTool === 'select');
+    
+    if (c.isDrawingMode) {
+      c.freeDrawingBrush = new fabric.PencilBrush(c);
+      c.freeDrawingBrush.color = currentTool === 'highlighter' ? color + '70' : (currentTool === 'laser' ? 'red' : color);
+      c.freeDrawingBrush.width = currentTool === 'highlighter' ? size * 5 : size;
+    }
+    c.forEachObject(o => { o.selectable = c.selection; o.evented = (c.selection || currentTool === 'eraser'); });
+  }
+
+  function switchTool(t) {
+    currentTool = t;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+    canvases.forEach(c => { if(c) applyToolToCanvas(c); });
+  }
+
+  function updateStyles() {
+    canvases.forEach(c => { if(c) applyToolToCanvas(c); });
+  }
+
+  function saveToDB() {
+    const transaction = db.transaction("files", "readwrite");
+    const store = transaction.objectStore("files");
+    store.get(currentFileName).onsuccess = (e) => {
+      const data = e.target.result;
+      data.edits = canvases.map((c, i) => c ? c.toJSON() : savedEdits[i]);
+      store.put(data);
+      alert("Progress Saved!");
+    };
+  }
+
+  async function exportPDF() {
+    setLoader(true, "Finalizing PDF Layout...");
+    const firstVP = pageViewports[0];
+    const orientation = firstVP.width > firstVP.height ? 'l' : 'p';
+    const doc = new jsPDF({ 
+      orientation: orientation, 
+      unit: 'pt', 
+      format: [firstVP.width / 2, firstVP.height / 2],
+      compress: true 
+    });
+
+    for (let i = 0; i < pdfDoc.numPages; i++) {
+      if (i > 0) {
+        const vp = pageViewports[i];
+        doc.addPage([vp.width / 2, vp.height / 2], vp.width > vp.height ? 'l' : 'p');
+      }
+      const page = await pdfDoc.getPage(i + 1);
+      const vp = pageViewports[i];
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = vp.width; 
+      tempCanvas.height = vp.height;
+      const ctx = tempCanvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
       
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').then(reg => {
-            // Check for updates every time the app is opened
-            reg.onupdatefound = () => {
-              const installingWorker = reg.installing;
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New version found and installed!
-                  document.getElementById('update-banner').style.display = 'block';
-                }
-              };
-            };
+      const state = canvases[i] ? canvases[i].toJSON() : savedEdits[i];
+      if (state && state.objects.length > 0) {
+        const fOff = new fabric.StaticCanvas(null, { width: vp.width, height: vp.height });
+        await new Promise(resolve => {
+          fOff.loadFromJSON(state, () => {
+            fOff.setZoom(2.0); 
+            fOff.renderAll();
+            resolve();
           });
         });
+        const overlay = await new Promise(resolve => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.src = fOff.toDataURL({ format: 'png' });
+        });
+        ctx.drawImage(overlay, 0, 0, vp.width, vp.height);
+        fOff.dispose();
       }
-    </script>
-  </body>
+      const imgData = tempCanvas.toDataURL('image/jpeg', 0.85);
+      doc.addImage(imgData, 'JPEG', 0, 0, vp.width / 2, vp.height / 2, null, 'FAST');
+    }
+    doc.save(currentFileName.replace(".pdf", "_edited.pdf"));
+    setLoader(false);
+  }
+
+  function deleteSelection() {
+    canvases.forEach(c => { if(c) { const act = c.getActiveObjects(); c.remove(...act); c.discardActiveObject(); c.renderAll(); } });
+  }
+
+  function setLoader(s, t) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; document.getElementById('loader-msg').innerText = t; }
+  
+  function initUI() { 
+    document.getElementById('landing-page').style.display = 'none'; 
+    document.getElementById('main-toolbar').style.display = 'flex'; 
+    document.getElementById('viewer').style.display = 'flex'; 
+    document.getElementById('zoom-ui').style.display = 'flex'; 
+  }
+
+  document.querySelectorAll('.tool-btn').forEach(btn => btn.onclick = () => switchTool(btn.dataset.tool));
+
+  const APP_VERSION = "1.0.5";
+  document.getElementById('app-version').innerText = APP_VERSION;
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        reg.onupdatefound = () => {
+          const installingWorker = reg.installing;
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              document.getElementById('update-banner').style.display = 'block';
+            }
+          };
+        };
+      });
+    });
+  }
+</script>
+</body>
 </html>
