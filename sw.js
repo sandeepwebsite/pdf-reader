@@ -1,5 +1,5 @@
 // Increment version to trigger an update for users
-const CACHE_NAME = 'pdf-pro-v1.0.8'; 
+const CACHE_NAME = 'pdf-pro-v1.0.9'; 
 
 const ASSETS = [
   './',
@@ -32,4 +32,13 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+});
+
+// Add this to the bottom of your sw.js
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({
+      version: CACHE_NAME
+    });
+  }
 });
