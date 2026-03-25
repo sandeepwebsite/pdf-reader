@@ -3,288 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro PDF Editor</title>
+    <title>Master PDF Editor</title>
     
-    <link rel="icon" id="favicon" href="">
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        :root { --bg: #dbdbdb; --toolbar: #ffffff; --text: #333; --accent: #007bff; --stroke-color: #007bff; }
-        body.dark-mode { --bg: #1e1e1e; --toolbar: #2d2d2d; --text: #eee; }
-        body.dark-mode #viewer canvas:first-child { filter: invert(0.9) hue-rotate(180deg); }
+        :root { --bg: #f0f2f5; --toolbar: #ffffff; --text: #333; --accent: #007bff; }
+        body.dark-mode { --bg: #121212; --toolbar: #1e1e1e; --text: #e0e0e0; }
+        body.dark-mode .pdf-canvas { filter: invert(0.9) hue-rotate(180deg); }
 
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        .toolbar { background: var(--toolbar); padding: 8px 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #ccc; z-index: 1000; flex-wrap: wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .tool-group { display: flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 4px; gap: 4px; }
-        
-        button { border: none; background: transparent; color: var(--text); padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
-        button.active { background: var(--accent); color: white; }
-        button:hover:not(.active) { background: rgba(0,0,0,0.05); }
+        /* Landing & Recent */
+        #landing-page { position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .upload-box { background: var(--toolbar); padding: 40px; border-radius: 15px; border: 3px dashed #ccc; cursor: pointer; width: 100%; max-width: 500px; text-align: center; transition: 0.3s; }
+        .upload-box:hover { border-color: var(--accent); background: rgba(0,123,255,0.05); }
+        .recent-list { margin-top: 30px; width: 100%; max-width: 500px; text-align: left; }
+        .recent-item { background: var(--toolbar); padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ddd; }
+        .recent-info { flex: 1; cursor: pointer; display: flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-del-recent { color: #dc3545; cursor: pointer; padding: 5px 10px; transition: 0.2s; }
+        .btn-del-recent:hover { transform: scale(1.2); }
 
-        .sizer-container { display: flex; align-items: center; gap: 8px; padding: 0 10px; border-left: 1px solid #ccc; }
-        #stroke-slider { cursor: pointer; accent-color: var(--stroke-color); width: 80px; }
-        .size-label { font-size: 11px; font-weight: bold; width: 25px; text-align: center; }
+        /* UI */
+        .toolbar { background: var(--toolbar); padding: 10px; display: none; align-items: center; gap: 8px; border-bottom: 1px solid #ccc; z-index: 1000; flex-wrap: wrap; }
+        .tool-group { display: flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 4px; gap: 2px; }
+        button, select { border: 1px solid #ddd; background: #fff; color: var(--text); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; outline: none; }
+        button.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .gradient-btn.active { background: linear-gradient(45deg, #007bff, #6610f2) !important; color: white !important; }
 
-        /* Gradient Toggle Style */
-        .gradient-btn { border: 1px solid #ccc !important; font-size: 10px; font-weight: bold; text-transform: uppercase; }
-        .gradient-btn.active { background: linear-gradient(45deg, #007bff, #6610f2) !important; border-color: transparent !important; }
-
-        /* Cursors */
-        .cursor-select { cursor: default; }
-        .cursor-pen, .cursor-highlighter { cursor: crosshair; }
-        .cursor-laser { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5" fill="red"/></svg>') 10 10, auto; }
-        .cursor-eraser { cursor: cell; }
-        .cursor-rect, .cursor-star { cursor: nwse-resize; }
-        .cursor-text { cursor: text; }
-
-        #viewer { flex: 1; overflow: auto; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; } 
-        .page-wrapper { position: relative; transform: scale(var(--zoom, 1)); transform-origin: top center; display: flex; flex-direction: column; align-items: center; margin-bottom: 50px; }
-        .page-body { position: relative; background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.3); overflow: hidden; }
+        #viewer { flex: 1; overflow: auto; padding: 20px; display: none; flex-direction: column; align-items: center; gap: 30px; } 
+        .page-wrapper { position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.2); background: white; transition: transform 0.1s; }
         .canvas-container { position: absolute !important; top: 0; left: 0; }
-        
-        .page-badge { margin-top: 10px; background: var(--toolbar); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #ccc; }
 
-        #delete-btn { color: #dc3545; display: none; }
-        .btn-danger { color: #dc3545; font-size: 0.9rem; font-weight: bold; }
-        .btn-save { color: #28a745; font-weight: bold; border: 1px solid #28a745 !important; }
+        .zoom-controls { position: fixed; bottom: 20px; right: 20px; display: none; flex-direction: column; gap: 8px; z-index: 1001; }
+        .zoom-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--toolbar); box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 
-        .zoom-controls { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1001; }
-        .zoom-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--toolbar); color: var(--text); box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: none; cursor: pointer; }
-        
-        #loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
+        #loader { position: fixed; inset: 0; background: rgba(0,0,0,0.8); color: white; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
+
+        /* CURSORS */
+        .cursor-select { cursor: default; }
+        .cursor-pen { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 512 512"><path fill="black" d="M362.7 19.3L314.3 67.7 444.3 197.7l48.4-48.4c25-25 25-65.5 0-90.5L453.3 19.3c-25-25-65.5-25-90.5 0zm-71 71L58.6 323.5c-10.4 10.4-18 23.3-22.2 37.4L1 481.2C-1.5 489.7 .8 498.8 7 505s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L421.7 220.3 291.7 90.3z"/></svg>') 0 24, auto; }
+        .cursor-highlighter { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 512 512"><path fill="orange" d="M443.3 100.7l48-48c25-25 25-65.5 0-90.5s-65.5-25-90.5 0l-48 48L443.3 100.7zM281.4 105.1L406.9 230.6l-21.2 21.2c-14.1 14.1-33.1 22.1-53 22.1s-39-8-53-22.1L154.1 126.2c-14.1-14.1-22.1-33.1-22.1-53s8-39 22.1-53l21.2-21.2L281.4 105.1zM5.3 459.4L133.4 331.3l126.2 126.2L131.5 506.7c-6.2 6.2-16.4 6.2-22.6 0L5.3 482c-6.2-6.2-6.2-16.4 0-22.6z"/></svg>') 0 24, auto; }
+        .cursor-eraser { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 512 512"><path fill="red" d="M452 10c-12-12-32-12-44 0L297 121l134 134L502 144c12-12 12-32 0-44L452 10zM274 144L30 388c-12 12-12 32 0 44l102 102c12 12 32 12 44 0L420 278 274 144z"/></svg>') 0 24, auto; }
+        .cursor-rect, .cursor-star { cursor: crosshair; }
+        .cursor-text { cursor: text; }
+        .cursor-laser { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="red"/></svg>') 10 10, auto; }
     </style>
 </head>
 <body>
 
-<div id="loader"><p id="loader-text">Processing...</p></div>
+<div id="loader"><p id="loader-text">Loading...</p></div>
 
-<div class="toolbar">
-    <button onclick="document.getElementById('file-input').click()" title="Upload PDF"><i class="fas fa-file-upload"></i></button>
-    
+<div id="landing-page">
+    <h1 style="margin-bottom: 5px;">PDF Editor Master</h1>
+    <p style="color:gray; margin-bottom: 30px;">Upload a PDF to start or continue editing</p>
+    <div class="upload-box" onclick="document.getElementById('file-input').click()">
+        <i class="fas fa-cloud-upload-alt fa-3x" style="color:var(--accent); margin-bottom:15px;"></i>
+        <h3>Click to Upload PDF</h3>
+    </div>
+    <div class="recent-list" id="recent-list"></div>
+</div>
+
+<div class="toolbar" id="main-toolbar">
+    <button onclick="location.reload()" title="Home"><i class="fas fa-home"></i></button>
     <div class="tool-group">
         <button class="tool-btn active" data-tool="select" title="Select"><i class="fas fa-mouse-pointer"></i></button>
         <button class="tool-btn" data-tool="pen" title="Pen"><i class="fas fa-pen"></i></button>
         <button class="tool-btn" data-tool="highlighter" title="Highlighter"><i class="fas fa-highlighter"></i></button>
-        <button class="tool-btn" data-tool="laser" title="Laser Pointer"><i class="fas fa-bolt" style="color: #ff4d4d;"></i></button>
+        <button class="tool-btn" data-tool="laser" title="Laser"><i class="fas fa-bolt" style="color:red"></i></button>
         <button class="tool-btn" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
     </div>
-
     <div class="tool-group">
         <button class="tool-btn" data-tool="rect" title="Rectangle"><i class="fas fa-vector-square"></i></button>
-        <button class="tool-btn" data-tool="star" title="Star Tool"><i class="fas fa-star"></i></button>
-        <button class="tool-btn" data-tool="text" title="Add Text"><i class="fas fa-font"></i></button>
+        <button class="tool-btn" data-tool="star" title="Star"><i class="fas fa-star"></i></button>
+        <button class="tool-btn" data-tool="text" title="Text"><i class="fas fa-font"></i></button>
     </div>
-
-    <div class="sizer-container">
-        <span class="size-label" id="size-val">5px</span>
-        <input type="range" id="stroke-slider" min="1" max="32" value="5">
+    <div style="display: flex; gap: 5px; border-left: 1px solid #ccc; padding-left: 10px;">
+        <select id="size-selector" onchange="updateToolSettings()">
+            <option value="1">1px</option>
+            <option value="2">2px</option>
+            <option value="3">3px</option>
+            <option value="4">4px</option>
+            <option value="5" selected>5px</option>
+            <option value="12">12px</option>
+            <option value="24">24px</option>
+            <option value="48">48px</option>
+        </select>
+        <div style="display: flex; align-items: center; gap: 8px;">
+    <div id="color-preview" style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #ccc; background: #000000;"></div>
+    
+        <select id="color-selector" onchange="updateColorUI()">
+            <option value="#000000" style="background-color: #000000; color: white;">Black</option>
+            <option value="#ff0000" style="background-color: #ff0000; color: white;">Red</option>
+            <option value="#0000ff" style="background-color: #0000ff; color: white;">Blue</option>
+            <option value="#008000" style="background-color: #008000; color: white;">Green</option>
+            <option value="#ff00db" style="background-color: #ff00db; color: white;">Pink</option>
+            <option value="#b000ff" style="background-color: #b000ff; color: white;">Purple</option>
+            <option value="#f0ff00" style="background-color: #f0ff00; color: black;">Lemon</option>
+            <option value="#04dfff" style="background-color: #04dfff; color: black;">Cyan</option>
+        </select>
     </div>
-
-    <div style="display: flex; align-items: center; gap: 5px; border-left: 1px solid #ccc; padding-left: 10px;">
-        <input type="color" id="color-picker" value="#007bff">
-        <button id="grad-toggle" class="gradient-btn" onclick="toggleGradient()" title="Toggle Gradient Text">Grad</button>
+        <button id="grad-toggle" class="gradient-btn" onclick="toggleGradient()">Grad</button>
     </div>
-    
-    <button onclick="toggleDarkMode()" id="dark-toggle"><i class="fas fa-moon"></i></button>
-    <button id="delete-btn" onclick="deleteSelection()"><i class="fas fa-trash-alt"></i></button>
-    
-    <button class="btn-save" onclick="manualSave()" title="Save Locally"><i class="fas fa-floppy-disk"></i> Save</button>
-    <button class="btn-danger" onclick="clearStorage()" title="Reset All"><i class="fas fa-broom"></i></button>
-    
-    <button onclick="exportPDF()" style="margin-left: auto; background: #28a745; color: white; padding: 8px 15px; border-radius: 5px; font-weight: bold;">Download</button>
+    <button onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
+    <button id="delete-btn" onclick="deleteSelection()" style="display:none; color:red;"><i class="fas fa-trash"></i></button>
+    <button onclick="manualSave()" style="color:#28a745; font-weight:bold;"><i class="fas fa-save"></i> Save</button>
+    <button onclick="exportPDF()" style="margin-left:auto; background:#28a745; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold;">Download</button>
 </div>
 
-<div id="viewer" style="--zoom: 1;"></div>
-
-<div class="zoom-controls">
-    <button class="zoom-btn" onclick="applyZoom(0.1)"><i class="fas fa-plus"></i></button>
-    <button class="zoom-btn" onclick="applyZoom(-0.1)"><i class="fas fa-minus"></i></button>
+<div id="viewer"></div>
+<div class="zoom-controls" id="zoom-ui">
+    <button class="zoom-btn" onclick="adjustZoom(0.1)"><i class="fas fa-plus"></i></button>
+    <button class="zoom-btn" onclick="adjustZoom(-0.1)"><i class="fas fa-minus"></i></button>
 </div>
 
 <input type="file" id="file-input" hidden accept="application/pdf">
 
 <script>
-    const setEmojiFavicon = (emoji) => {
-        const canvas = document.createElement('canvas'); canvas.height = 32; canvas.width = 32;
-        const ctx = canvas.getContext('2d'); ctx.font = '28px serif'; ctx.fillText(emoji, 0, 28);
-        document.getElementById('favicon').href = canvas.toDataURL();
-    };
-    setEmojiFavicon('📝');
-
     const { jsPDF } = window.jspdf;
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    let pdfDoc = null, canvases = [], currentTool = 'select', currentColor = '#007bff', currentWidth = 5, zoomLevel = 1.0, currentFileName = "", isShift = false, isGradient = false;
+    let pdfDoc = null, canvases = [], currentTool = 'select', currentFileName = "", zoomLevel = 1.0, isShift = false, isGradient = false;
 
-    window.onkeydown = e => { 
-        if(e.key === 'Shift') isShift = true; 
-        if(e.key === 'Delete' || e.key === 'Backspace') {
-            const activeCanvas = canvases.find(c => c.getActiveObject());
-            if (activeCanvas) {
-                const activeObj = activeCanvas.getActiveObject();
-                if (activeObj && !activeObj.isEditing) deleteSelection();
-            }
-        }
-    };
+    window.onload = loadRecentFiles;
+    window.onkeydown = e => { if(e.key === 'Shift') isShift = true; if(e.key === 'Delete') deleteSelection(); };
     window.onkeyup = () => isShift = false;
 
-    function toggleDarkMode() {
-        document.body.classList.toggle('dark-mode');
-        document.querySelector('#dark-toggle i').className = document.body.classList.contains('dark-mode') ? 'fas fa-sun' : 'fas fa-moon';
+    function loadRecentFiles() {
+        const container = document.getElementById('recent-list');
+        const history = JSON.parse(localStorage.getItem('pdf_history') || '[]');
+        container.innerHTML = '<h4>Recent Sessions</h4>';
+        if(history.length === 0) container.innerHTML += '<p style="color:gray; font-size:13px;">No recent files.</p>';
+        history.forEach(name => {
+            const item = document.createElement('div');
+            item.className = 'recent-item';
+            item.innerHTML = `
+                <div class="recent-info" onclick="openRecent('${name}')">
+                    <i class="fas fa-file-pdf" style="color:#dc3545; margin-right:10px;"></i>
+                    <span>${name}</span>
+                </div>
+                <i class="fas fa-trash-alt btn-del-recent" onclick="deleteRecent('${name}', event)"></i>
+            `;
+            container.appendChild(item);
+        });
     }
 
-    function toggleGradient() {
-        isGradient = !isGradient;
-        document.getElementById('grad-toggle').classList.toggle('active');
+    function deleteRecent(name, e) {
+        e.stopPropagation();
+        let history = JSON.parse(localStorage.getItem('pdf_history') || '[]');
+        localStorage.setItem('pdf_history', JSON.stringify(history.filter(h => h !== name)));
+        localStorage.removeItem(`pdf_edit_${name}`);
+        loadRecentFiles();
     }
 
-    const saveState = () => {
-        if (!currentFileName) return;
-        localStorage.setItem(`pdf_edit_${currentFileName}`, JSON.stringify(canvases.map(c => {
-            const json = c.toJSON();
-            json.objects = json.objects.filter(obj => !obj.isLaser);
-            return json;
-        })));
-    };
+    function openRecent(name) {
+        alert("Please select '" + name + "' from your computer to restore its saved edits.");
+        document.getElementById('file-input').click();
+    }
+
+    function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+    function toggleGradient() { isGradient = !isGradient; document.getElementById('grad-toggle').classList.toggle('active'); }
 
     function manualSave() {
         if (!currentFileName) return;
-        document.getElementById('loader-text').innerText = "Saving Edits...";
-        document.getElementById('loader').style.display = 'flex';
-        saveState();
-        setTimeout(() => { document.getElementById('loader').style.display = 'none'; }, 500);
+        const data = canvases.map(c => c.toJSON().objects.filter(o => !o.isLaser));
+        localStorage.setItem(`pdf_edit_${currentFileName}`, JSON.stringify(data));
+        let history = JSON.parse(localStorage.getItem('pdf_history') || '[]');
+        if(!history.includes(currentFileName)) history.unshift(currentFileName);
+        localStorage.setItem('pdf_history', JSON.stringify(history.slice(0, 10)));
+        alert("Progress saved to local storage!");
     }
 
-    const loadState = () => {
-        const saved = localStorage.getItem(`pdf_edit_${currentFileName}`);
-        if (!saved) return;
-        const data = JSON.parse(saved);
-        canvases.forEach((c, i) => { if (data[i]) c.loadFromJSON(data[i], () => { c.setZoom(2.0); c.renderAll(); }); });
-    };
-
-    function clearStorage() { if(confirm("Clear all data for this PDF?")) { localStorage.removeItem(`pdf_edit_${currentFileName}`); location.reload(); } }
-
-    const updateBrushStyle = () => {
-        document.documentElement.style.setProperty('--stroke-color', currentColor);
-        document.getElementById('size-val').innerText = `${currentWidth}px`;
-        canvases.forEach(c => {
-            if (c.freeDrawingBrush) {
-                if (currentTool === 'laser') {
-                    c.freeDrawingBrush.color = '#ff4d4d'; // Laser red
-                    c.freeDrawingBrush.width = currentWidth; // Fixed: Laser follows sizer
-                    c.freeDrawingBrush.shadow = new fabric.Shadow({ blur: currentWidth, color: 'red' });
-                } else {
-                    c.freeDrawingBrush.color = (currentTool === 'highlighter') ? currentColor + '70' : currentColor;
-                    c.freeDrawingBrush.width = (currentTool === 'highlighter') ? currentWidth * 4 : currentWidth;
-                    c.freeDrawingBrush.shadow = null;
-                }
-            }
+    function adjustZoom(delta) {
+        zoomLevel = Math.max(0.3, Math.min(3, zoomLevel + delta));
+        canvases.forEach((c, i) => {
+            const wrapper = document.querySelectorAll('.page-wrapper')[i];
+            const baseW = c.width / (2 * (zoomLevel - delta));
+            const baseH = c.height / (2 * (zoomLevel - delta));
+            wrapper.style.width = (baseW * zoomLevel) + 'px';
+            wrapper.style.height = (baseH * zoomLevel) + 'px';
+            c.setZoom(2.0 * zoomLevel);
+            c.setWidth(baseW * 2 * zoomLevel);
+            c.setHeight(baseH * 2 * zoomLevel);
         });
-    };
-
-    document.getElementById('color-picker').oninput = (e) => {
-        currentColor = e.target.value;
-        updateBrushStyle();
-        canvases.forEach(c => {
-            c.getActiveObjects().forEach(obj => obj.type.includes('text') ? obj.set('fill', currentColor) : obj.set('stroke', currentColor));
-            c.requestRenderAll();
-        });
-        saveState();
-    };
-
-    document.getElementById('stroke-slider').oninput = (e) => {
-        currentWidth = parseInt(e.target.value);
-        updateBrushStyle();
-    };
+    }
 
     document.getElementById('file-input').onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const file = e.target.files[0]; if (!file) return;
         currentFileName = file.name;
-        document.getElementById('loader-text').innerText = "Loading PDF...";
         document.getElementById('loader').style.display = 'flex';
+        document.getElementById('landing-page').style.display = 'none';
+        document.getElementById('main-toolbar').style.display = 'flex';
+        document.getElementById('viewer').style.display = 'flex';
+        document.getElementById('zoom-ui').style.display = 'flex';
+
         const reader = new FileReader();
         reader.onload = async function() {
             pdfDoc = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
             await initViewer();
-            loadState();
+            const saved = localStorage.getItem(`pdf_edit_${currentFileName}`);
+            if(saved) {
+                const data = JSON.parse(saved);
+                canvases.forEach((c, i) => { if(data[i]) c.loadFromJSON({objects: data[i]}, () => c.renderAll()); });
+            }
             document.getElementById('loader').style.display = 'none';
         };
         reader.readAsArrayBuffer(file);
     };
 
     async function initViewer() {
-        const viewer = document.getElementById('viewer');
-        viewer.innerHTML = ''; canvases = [];
+        const viewer = document.getElementById('viewer'); viewer.innerHTML = ''; canvases = [];
+        const firstPage = await pdfDoc.getPage(1);
+        const initialVp = firstPage.getViewport({ scale: 2.0 });
+        zoomLevel = ((viewer.clientWidth - 80) / (initialVp.width / 2));
+
         for (let i = 1; i <= pdfDoc.numPages; i++) {
             const page = await pdfDoc.getPage(i);
             const vp = page.getViewport({ scale: 2.0 });
             const wrap = document.createElement('div'); wrap.className = 'page-wrapper';
+            wrap.style.width = (vp.width/2 * zoomLevel)+'px'; wrap.style.height = (vp.height/2 * zoomLevel)+'px';
             const body = document.createElement('div'); body.className = 'page-body';
-            body.style.width = (vp.width / 2) + 'px'; body.style.height = (vp.height / 2) + 'px';
-            const bg = document.createElement('canvas'); bg.width = vp.width; bg.height = vp.height;
+            const bg = document.createElement('canvas'); bg.className = 'pdf-canvas';
+            bg.width = vp.width; bg.height = vp.height;
             bg.style.width = "100%"; bg.style.height = "100%";
             const fg = document.createElement('canvas'); fg.id = `fg-${i}`;
-            const badge = document.createElement('div'); badge.className = 'page-badge'; badge.innerText = `Page ${i} of ${pdfDoc.numPages}`;
-            body.append(bg, fg); wrap.append(body, badge); viewer.appendChild(wrap);
+            body.append(bg, fg); wrap.append(body); viewer.appendChild(wrap);
             await page.render({ canvasContext: bg.getContext('2d'), viewport: vp }).promise;
-            const fCanvas = new fabric.Canvas(fg.id, { width: vp.width, height: vp.height });
-            fCanvas.setZoom(2.0);
+            const fCanvas = new fabric.Canvas(fg.id, { width: vp.width * zoomLevel, height: vp.height * zoomLevel });
+            fCanvas.setZoom(2.0 * zoomLevel);
             setupFabric(fCanvas); canvases.push(fCanvas);
         }
         refreshTools();
     }
 
     function setupFabric(fCanvas) {
-        fCanvas.on('selection:created', () => { if(currentTool === 'select') document.getElementById('delete-btn').style.display = 'block'; });
+        fCanvas.on('selection:created', () => document.getElementById('delete-btn').style.display = 'block');
         fCanvas.on('selection:cleared', () => document.getElementById('delete-btn').style.display = 'none');
-        
         fCanvas.on('path:created', (opt) => {
             if (currentTool === 'laser') {
-                const lp = opt.path;
-                lp.set({ isLaser: true, selectable: false });
-                setTimeout(() => {
-                    lp.animate('opacity', 0, { duration: 400, onChange: fCanvas.renderAll.bind(fCanvas), onComplete: () => fCanvas.remove(lp) });
-                }, 800);
-                return;
-            }
-            if (isShift) {
+                const lp = opt.path; lp.set({ isLaser: true, selectable: false });
+                setTimeout(() => lp.animate('opacity', 0, { duration: 400, onChange: fCanvas.renderAll.bind(fCanvas), onComplete: () => fCanvas.remove(lp) }), 800);
+            } else if (isShift) {
                 const p = opt.path.path;
                 if (p.length > 1) opt.path.set({ path: [['M', p[0][1], p[0][2]], ['L', p[p.length-1][1], p[p.length-1][2]]] });
             }
-            saveState();
         });
 
         let drawing = false, obj, sx, sy;
         fCanvas.on('mouse:down', (o) => {
-            if (currentTool === 'select' || currentTool === 'laser' || currentTool === 'pen' || currentTool === 'highlighter') return;
-            if (currentTool === 'eraser') { if (o.target) fCanvas.remove(o.target); return; }
+            if (['select','pen','highlighter','eraser','laser'].includes(currentTool)) {
+                if(currentTool === 'eraser' && o.target) fCanvas.remove(o.target);
+                return;
+            }
             let ptr = fCanvas.getPointer(o.e); sx = ptr.x; sy = ptr.y;
-            
+            const color = document.getElementById('color-selector').value;
+            const size = parseInt(document.getElementById('size-selector').value);
+
             if (currentTool === 'text') {
-                const text = new fabric.IText('Text...', { left: sx, top: sy, fontSize: 24 });
+                const text = new fabric.IText('New Text', { left: sx, top: sy, fontSize: 24 });
                 if (isGradient) {
                     text.set('fill', new fabric.Gradient({
                         type: 'linear', coords: { x1: 0, y1: 0, x2: text.width, y2: 0 },
                         colorStops: [{ offset: 0, color: '#007bff' }, { offset: 1, color: '#6610f2' }]
                     }));
-                } else { text.set('fill', currentColor); }
+                } else text.set('fill', color);
                 fCanvas.add(text); fCanvas.setActiveObject(text); text.enterEditing(); return;
             }
             drawing = true;
-            if (currentTool === 'rect') obj = new fabric.Rect({ left: sx, top: sy, width: 1, height: 1, fill: 'transparent', stroke: currentColor, strokeWidth: currentWidth });
+            if (currentTool === 'rect') obj = new fabric.Rect({ left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
             else if (currentTool === 'star') {
-                const rot = Math.PI/2*3, step = Math.PI/5, pts = [];
-                for(let i=0; i<5; i++){
-                    pts.push({x: Math.cos(rot + i*step*2)*50, y: Math.sin(rot + i*step*2)*50});
-                    pts.push({x: Math.cos(rot + (i*2+1)*step)*25, y: Math.sin(rot + (i*2+1)*step)*25});
+                const pts = [];
+                for(let i=0; i<10; i++){
+                    let r = (i%2==0) ? 50 : 25;
+                    pts.push({x: Math.cos(Math.PI/2*3 + i*Math.PI/5)*r, y: Math.sin(Math.PI/2*3 + i*Math.PI/5)*r});
                 }
-                obj = new fabric.Polygon(pts, { left: sx, top: sy, fill: 'transparent', stroke: currentColor, strokeWidth: currentWidth, originX: 'center', originY: 'center' });
+                obj = new fabric.Polygon(pts, { left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size, originX: 'center', originY: 'center' });
             }
             if(obj) fCanvas.add(obj);
         });
@@ -302,27 +298,56 @@
         fCanvas.on('mouse:up', () => drawing = false);
     }
 
-    function applyZoom(v) { zoomLevel += v; document.getElementById('viewer').style.setProperty('--zoom', zoomLevel); }
-
     function refreshTools() {
         canvases.forEach(c => {
             c.upperCanvasEl.className = `upper-canvas cursor-${currentTool}`;
-            c.isDrawingMode = (currentTool === 'pen' || currentTool === 'highlighter' || currentTool === 'laser');
-            if (c.isDrawingMode) {
-                c.freeDrawingBrush = new fabric.PencilBrush(c);
-                updateBrushStyle();
-            }
+            c.isDrawingMode = ['pen','highlighter','laser'].includes(currentTool);
+            if (c.isDrawingMode) { c.freeDrawingBrush = new fabric.PencilBrush(c); updateToolSettings(); }
             c.selection = (currentTool === 'select');
             c.forEachObject(o => { o.selectable = (currentTool === 'select'); o.hasControls = o.selectable; });
             c.requestRenderAll();
         });
     }
 
+    function updateColorUI() {
+    const selector = document.getElementById('color-selector');
+    const preview = document.getElementById('color-preview');
+    const selectedColor = selector.value;
+
+    // Update the preview circle color
+    preview.style.background = selectedColor;
+
+    // Optional: Change the selector's own background to match (Mobile Friendly)
+    selector.style.backgroundColor = selectedColor;
+    
+    // Determine if text should be white or black for readability
+    const isLight = ['#f0ff00', '#04dfff', '#ffffff'].includes(selectedColor);
+    selector.style.color = isLight ? 'black' : 'white';
+
+    // Call your existing tool update logic
+    updateToolSettings();
+}
+
+// Update your updateToolSettings to use the same logic
+function updateToolSettings() {
+    const color = document.getElementById('color-selector').value;
+    const size = parseInt(document.getElementById('size-selector').value);
+    
+    canvases.forEach(c => {
+        if (c.freeDrawingBrush) {
+            if(currentTool === 'laser') {
+                c.freeDrawingBrush.color = 'red';
+                // ... rest of laser logic
+            } else {
+                c.freeDrawingBrush.color = (currentTool === 'highlighter') ? color + '70' : color;
+                c.freeDrawingBrush.width = (currentTool === 'highlighter') ? size * 4 : size;
+            }
+        }
+    });
+}
+
     function deleteSelection() {
-        canvases.forEach(c => {
-            const act = c.getActiveObjects();
-            if (act.length > 0) { c.remove(...act); c.discardActiveObject(); }
-        });
+        canvases.forEach(c => { const act = c.getActiveObjects(); if(act.length > 0) { c.remove(...act); c.discardActiveObject(); } });
     }
 
     document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -334,70 +359,36 @@
         };
     });
 
-async function exportPDF() {
-    document.getElementById('loader-text').innerText = "Exporting PDF...";
-    document.getElementById('loader').style.display = 'flex';
+    async function exportPDF() {
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('loader-text').innerText = "Generating Original Scale PDF...";
+        
+        const firstPage = await pdfDoc.getPage(1);
+        const originalVp = firstPage.getViewport({ scale: 1.0 });
+        const doc = new jsPDF({ unit: 'pt', format: [originalVp.width, originalVp.height] });
 
-    const doc = new jsPDF({
-        unit: 'px',
-        format: [canvases[0].width, canvases[0].height],
-        hotfixes: ["px_scaling"]
-    });
+        for (let i = 0; i < canvases.length; i++) {
+            const page = await pdfDoc.getPage(i+1);
+            const origVp = page.getViewport({ scale: 2.0 }); // 2x Capture for quality
+            
+            const temp = document.createElement('canvas');
+            temp.width = origVp.width; temp.height = origVp.height;
+            const tCtx = temp.getContext('2d');
+            
+            const bgCanvas = document.querySelectorAll('.pdf-canvas')[i];
+            tCtx.drawImage(bgCanvas, 0, 0);
 
-    for (let i = 0; i < canvases.length; i++) {
-        const fCanvas = canvases[i];
+            const fCanvas = canvases[i];
+            const dataUrl = fCanvas.toDataURL({ format: 'png', multiplier: 1 / zoomLevel });
+            const annImg = await new Promise(r => { const img = new Image(); img.onload = () => r(img); img.src = dataUrl; });
+            tCtx.drawImage(annImg, 0, 0);
 
-        if (i > 0) {
-            doc.addPage(
-                [fCanvas.width, fCanvas.height],
-                fCanvas.width > fCanvas.height ? 'l' : 'p'
-            );
+            if (i > 0) doc.addPage([origVp.width/2, origVp.height/2]);
+            doc.addImage(temp.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, origVp.width/2, origVp.height/2);
         }
-
-        // ✅ Get background PDF canvas
-        const bgCanvas = document.querySelectorAll('.page-body canvas:first-child')[i];
-
-        // ✅ Create merged canvas
-        const merged = document.createElement('canvas');
-        merged.width = bgCanvas.width;
-        merged.height = bgCanvas.height;
-
-        const ctx = merged.getContext('2d');
-
-        // ✅ Draw PDF background
-        ctx.drawImage(bgCanvas, 0, 0);
-
-        // 🔥 IMPORTANT FIX: Reset zoom temporarily
-        const originalZoom = fCanvas.getZoom();
-        fCanvas.setZoom(1);
-        fCanvas.renderAll();
-
-        // ✅ Export Fabric correctly
-        const fabricImg = new Image();
-        fabricImg.src = fCanvas.toDataURL({
-            format: 'png',
-            multiplier: originalZoom // 🔥 match zoom scale
-        });
-
-        await new Promise(resolve => {
-            fabricImg.onload = () => {
-                ctx.drawImage(fabricImg, 0, 0);
-                resolve();
-            };
-        });
-
-        // ✅ Restore zoom
-        fCanvas.setZoom(originalZoom);
-        fCanvas.renderAll();
-
-        // ✅ Add to PDF
-        const finalImg = merged.toDataURL('image/jpeg', 1.0);
-        doc.addImage(finalImg, 'JPEG', 0, 0, merged.width, merged.height);
+        doc.save(currentFileName.replace(".pdf", "_edited.pdf"));
+        document.getElementById('loader').style.display = 'none';
     }
-
-    doc.save(currentFileName || "pdf_edited.pdf");
-    document.getElementById('loader').style.display = 'none';
-}
 </script>
 </body>
 </html>
