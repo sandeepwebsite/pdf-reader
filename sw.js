@@ -2,6 +2,8 @@ const CACHE_NAME = 'pdf-pro-v1.0.5'; // Increment this to trigger update
 const ASSETS = [
   './',
   './index.html',
+  './manifest.json',
+  './images/logo.png',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
