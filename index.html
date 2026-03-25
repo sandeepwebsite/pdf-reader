@@ -68,15 +68,38 @@
         </div>
         <div class="tool-group">
             <select id="size-dropdown" onchange="updateStyles()">
-                <option value="1">1 px</option><option value="3" selected>3 px</option><option value="5">5 px</option><option value="10">10 px</option>
+              <option value="1">1 px</option>
+              <option value="2">2 px</option>
+              <option value="3" selected>3 px</option>
+              <option value="4">4 px</option>
+              <option value="5">5 px</option>
+              <option value="6">6 px</option>
+              
+              <option value="8">8 px</option>
+              <option value="10">10 px</option>
+              <option value="12">12 px</option>
+              <option value="14">14 px</option>
+              <option value="16">16 px</option>
+              
+              <option value="18">18 px</option>
+              <option value="20">20 px</option>
+              <option value="24">24 px</option>
+              <option value="28">28 px</option>
+              <option value="32">32 px</option>
             </select>
         </div>
         <div class="tool-group">
             <button class="tool-btn" data-tool="rect"><i class="fas fa-square"></i></button>
             <button class="tool-btn" data-tool="text"><i class="fas fa-font"></i></button>
         </div>
-        <select id="color-selector" onchange="updateStyles()">
-            <option value="#000000">Black</option><option value="#ff0000">Red</option><option value="#0000ff">Blue</option>
+       <select id="color-selector" onchange="updateStyles()">
+          <option value="#000000">Black</option>
+          <option value="#ff0000">Red</option>
+          <option value="#0000ff">Blue</option>
+          <option value="#27ae60">Green</option>
+          <option value="#f1c40f">Yellow</option>
+          <option value="#8e44ad">Purple</option>
+          <option value="#ffffff">White</option>
         </select>
         <button onclick="toggleDarkMode()"><i class="fas fa-adjust"></i></button>
         <button id="delete-btn" onclick="deleteSelection()" style="display:none; color:var(--danger);"><i class="fas fa-trash"></i></button>
