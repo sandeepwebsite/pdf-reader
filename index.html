@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor</title>
+    <title>Pro PDF Editor</title>
+    
+    <link rel="icon" id="favicon" href="">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -16,22 +19,39 @@
 
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        .toolbar { background: var(--toolbar); padding: 8px 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #ccc; z-index: 1000; flex-wrap: wrap; }
+        .toolbar { background: var(--toolbar); padding: 8px 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #ccc; z-index: 1000; flex-wrap: wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .tool-group { display: flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 4px; gap: 4px; }
         
-        button { border: none; background: transparent; color: var(--text); padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        button { border: none; background: transparent; color: var(--text); padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
         button.active { background: var(--accent); color: white; }
+        button:hover:not(.active) { background: rgba(0,0,0,0.05); }
 
         .sizer-container { display: flex; align-items: center; gap: 8px; padding: 0 10px; border-left: 1px solid #ccc; }
-        #stroke-slider { cursor: pointer; accent-color: var(--stroke-color); width: 70px; }
+        #stroke-slider { cursor: pointer; accent-color: var(--stroke-color); width: 80px; }
+        .size-label { font-size: 11px; font-weight: bold; width: 25px; text-align: center; }
+
+        /* Gradient Toggle Style */
+        .gradient-btn { border: 1px solid #ccc !important; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .gradient-btn.active { background: linear-gradient(45deg, #007bff, #6610f2) !important; border-color: transparent !important; }
+
+        /* Cursors */
+        .cursor-select { cursor: default; }
+        .cursor-pen, .cursor-highlighter { cursor: crosshair; }
+        .cursor-laser { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5" fill="red"/></svg>') 10 10, auto; }
+        .cursor-eraser { cursor: cell; }
+        .cursor-rect, .cursor-star { cursor: nwse-resize; }
+        .cursor-text { cursor: text; }
 
         #viewer { flex: 1; overflow: auto; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; } 
-        .page-wrapper { position: relative; transform: scale(var(--zoom, 1)); transform-origin: top center; display: flex; flex-direction: column; align-items: center; margin-bottom: 40px; }
-        .page-body { position: relative; background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .page-wrapper { position: relative; transform: scale(var(--zoom, 1)); transform-origin: top center; display: flex; flex-direction: column; align-items: center; margin-bottom: 50px; }
+        .page-body { position: relative; background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.3); overflow: hidden; }
         .canvas-container { position: absolute !important; top: 0; left: 0; }
         
+        .page-badge { margin-top: 10px; background: var(--toolbar); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #ccc; }
+
         #delete-btn { color: #dc3545; display: none; }
         .btn-danger { color: #dc3545; font-size: 0.9rem; font-weight: bold; }
+        .btn-save { color: #28a745; font-weight: bold; border: 1px solid #28a745 !important; }
 
         .zoom-controls { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1001; }
         .zoom-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--toolbar); color: var(--text); box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: none; cursor: pointer; }
@@ -41,34 +61,41 @@
 </head>
 <body>
 
-<div id="loader"><p>Syncing Data...</p></div>
+<div id="loader"><p id="loader-text">Processing...</p></div>
 
 <div class="toolbar">
-    <button onclick="document.getElementById('file-input').click()"><i class="fas fa-file-upload"></i></button>
+    <button onclick="document.getElementById('file-input').click()" title="Upload PDF"><i class="fas fa-file-upload"></i></button>
     
     <div class="tool-group">
-        <button class="tool-btn active" data-tool="select"><i class="fas fa-mouse-pointer"></i></button>
-        <button class="tool-btn" data-tool="pen"><i class="fas fa-pen"></i></button>
-        <button class="tool-btn" data-tool="highlighter"><i class="fas fa-highlighter"></i></button>
-        <button class="tool-btn" data-tool="eraser"><i class="fas fa-eraser"></i></button>
+        <button class="tool-btn active" data-tool="select" title="Select"><i class="fas fa-mouse-pointer"></i></button>
+        <button class="tool-btn" data-tool="pen" title="Pen"><i class="fas fa-pen"></i></button>
+        <button class="tool-btn" data-tool="highlighter" title="Highlighter"><i class="fas fa-highlighter"></i></button>
+        <button class="tool-btn" data-tool="laser" title="Laser Pointer"><i class="fas fa-bolt" style="color: #ff4d4d;"></i></button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
     </div>
 
     <div class="tool-group">
-        <button class="tool-btn" data-tool="rect"><i class="fas fa-vector-square"></i></button>
-        <button class="tool-btn" data-tool="star"><i class="fas fa-star"></i></button>
-        <button class="tool-btn" data-tool="text"><i class="fas fa-font"></i></button>
+        <button class="tool-btn" data-tool="rect" title="Rectangle"><i class="fas fa-vector-square"></i></button>
+        <button class="tool-btn" data-tool="star" title="Star Tool"><i class="fas fa-star"></i></button>
+        <button class="tool-btn" data-tool="text" title="Add Text"><i class="fas fa-font"></i></button>
     </div>
 
     <div class="sizer-container">
-        <input type="range" id="stroke-slider" min="2" max="50" value="5">
+        <span class="size-label" id="size-val">5px</span>
+        <input type="range" id="stroke-slider" min="1" max="32" value="5">
     </div>
 
-    <input type="color" id="color-picker" value="#007bff">
+    <div style="display: flex; align-items: center; gap: 5px; border-left: 1px solid #ccc; padding-left: 10px;">
+        <input type="color" id="color-picker" value="#007bff">
+        <button id="grad-toggle" class="gradient-btn" onclick="toggleGradient()" title="Toggle Gradient Text">Grad</button>
+    </div>
     
     <button onclick="toggleDarkMode()" id="dark-toggle"><i class="fas fa-moon"></i></button>
     <button id="delete-btn" onclick="deleteSelection()"><i class="fas fa-trash-alt"></i></button>
-    <button class="btn-danger" onclick="clearStorage()" title="Clear Data"><i class="fas fa-broom"></i></button>
-
+    
+    <button class="btn-save" onclick="manualSave()" title="Save Locally"><i class="fas fa-floppy-disk"></i> Save</button>
+    <button class="btn-danger" onclick="clearStorage()" title="Reset All"><i class="fas fa-broom"></i></button>
+    
     <button onclick="exportPDF()" style="margin-left: auto; background: #28a745; color: white; padding: 8px 15px; border-radius: 5px; font-weight: bold;">Download</button>
 </div>
 
@@ -82,12 +109,28 @@
 <input type="file" id="file-input" hidden accept="application/pdf">
 
 <script>
+    const setEmojiFavicon = (emoji) => {
+        const canvas = document.createElement('canvas'); canvas.height = 32; canvas.width = 32;
+        const ctx = canvas.getContext('2d'); ctx.font = '28px serif'; ctx.fillText(emoji, 0, 28);
+        document.getElementById('favicon').href = canvas.toDataURL();
+    };
+    setEmojiFavicon('📝');
+
     const { jsPDF } = window.jspdf;
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    let pdfDoc = null, canvases = [], currentTool = 'select', currentColor = '#007bff', currentWidth = 5, zoomLevel = 1.0, currentFileName = "", isShift = false;
+    let pdfDoc = null, canvases = [], currentTool = 'select', currentColor = '#007bff', currentWidth = 5, zoomLevel = 1.0, currentFileName = "", isShift = false, isGradient = false;
 
-    window.onkeydown = e => { if(e.key === 'Shift') isShift = true; if(e.key === 'Delete') deleteSelection(); };
+    window.onkeydown = e => { 
+        if(e.key === 'Shift') isShift = true; 
+        if(e.key === 'Delete' || e.key === 'Backspace') {
+            const activeCanvas = canvases.find(c => c.getActiveObject());
+            if (activeCanvas) {
+                const activeObj = activeCanvas.getActiveObject();
+                if (activeObj && !activeObj.isEditing) deleteSelection();
+            }
+        }
+    };
     window.onkeyup = () => isShift = false;
 
     function toggleDarkMode() {
@@ -95,10 +138,27 @@
         document.querySelector('#dark-toggle i').className = document.body.classList.contains('dark-mode') ? 'fas fa-sun' : 'fas fa-moon';
     }
 
+    function toggleGradient() {
+        isGradient = !isGradient;
+        document.getElementById('grad-toggle').classList.toggle('active');
+    }
+
     const saveState = () => {
         if (!currentFileName) return;
-        localStorage.setItem(`pdf_edit_${currentFileName}`, JSON.stringify(canvases.map(c => c.toJSON())));
+        localStorage.setItem(`pdf_edit_${currentFileName}`, JSON.stringify(canvases.map(c => {
+            const json = c.toJSON();
+            json.objects = json.objects.filter(obj => !obj.isLaser);
+            return json;
+        })));
     };
+
+    function manualSave() {
+        if (!currentFileName) return;
+        document.getElementById('loader-text').innerText = "Saving Edits...";
+        document.getElementById('loader').style.display = 'flex';
+        saveState();
+        setTimeout(() => { document.getElementById('loader').style.display = 'none'; }, 500);
+    }
 
     const loadState = () => {
         const saved = localStorage.getItem(`pdf_edit_${currentFileName}`);
@@ -107,14 +167,22 @@
         canvases.forEach((c, i) => { if (data[i]) c.loadFromJSON(data[i], () => { c.setZoom(2.0); c.renderAll(); }); });
     };
 
-    function clearStorage() { if(confirm("Wipe edits?")) { localStorage.removeItem(`pdf_edit_${currentFileName}`); location.reload(); } }
+    function clearStorage() { if(confirm("Clear all data for this PDF?")) { localStorage.removeItem(`pdf_edit_${currentFileName}`); location.reload(); } }
 
     const updateBrushStyle = () => {
         document.documentElement.style.setProperty('--stroke-color', currentColor);
+        document.getElementById('size-val').innerText = `${currentWidth}px`;
         canvases.forEach(c => {
             if (c.freeDrawingBrush) {
-                c.freeDrawingBrush.color = (currentTool === 'highlighter') ? currentColor + '70' : currentColor;
-                c.freeDrawingBrush.width = (currentTool === 'highlighter') ? currentWidth * 4 : currentWidth;
+                if (currentTool === 'laser') {
+                    c.freeDrawingBrush.color = '#ff4d4d'; // Laser red
+                    c.freeDrawingBrush.width = currentWidth; // Fixed: Laser follows sizer
+                    c.freeDrawingBrush.shadow = new fabric.Shadow({ blur: currentWidth, color: 'red' });
+                } else {
+                    c.freeDrawingBrush.color = (currentTool === 'highlighter') ? currentColor + '70' : currentColor;
+                    c.freeDrawingBrush.width = (currentTool === 'highlighter') ? currentWidth * 4 : currentWidth;
+                    c.freeDrawingBrush.shadow = null;
+                }
             }
         });
     };
@@ -123,9 +191,7 @@
         currentColor = e.target.value;
         updateBrushStyle();
         canvases.forEach(c => {
-            c.getActiveObjects().forEach(obj => {
-                obj.type.includes('text') ? obj.set('fill', currentColor) : obj.set('stroke', currentColor);
-            });
+            c.getActiveObjects().forEach(obj => obj.type.includes('text') ? obj.set('fill', currentColor) : obj.set('stroke', currentColor));
             c.requestRenderAll();
         });
         saveState();
@@ -140,6 +206,7 @@
         const file = e.target.files[0];
         if (!file) return;
         currentFileName = file.name;
+        document.getElementById('loader-text').innerText = "Loading PDF...";
         document.getElementById('loader').style.display = 'flex';
         const reader = new FileReader();
         reader.onload = async function() {
@@ -163,7 +230,8 @@
             const bg = document.createElement('canvas'); bg.width = vp.width; bg.height = vp.height;
             bg.style.width = "100%"; bg.style.height = "100%";
             const fg = document.createElement('canvas'); fg.id = `fg-${i}`;
-            body.append(bg, fg); wrap.append(body); viewer.appendChild(wrap);
+            const badge = document.createElement('div'); badge.className = 'page-badge'; badge.innerText = `Page ${i} of ${pdfDoc.numPages}`;
+            body.append(bg, fg); wrap.append(body, badge); viewer.appendChild(wrap);
             await page.render({ canvasContext: bg.getContext('2d'), viewport: vp }).promise;
             const fCanvas = new fabric.Canvas(fg.id, { width: vp.width, height: vp.height });
             fCanvas.setZoom(2.0);
@@ -172,24 +240,19 @@
         refreshTools();
     }
 
-    function getStar(s, o, r) {
-        let rot = Math.PI/2*3, step = Math.PI/s, pts = [];
-        for(let i=0; i<s; i++){
-            pts.push({x: Math.cos(rot)*o, y: Math.sin(rot)*o}); rot+=step;
-            pts.push({x: Math.cos(rot)*r, y: Math.sin(rot)*r}); rot+=step;
-        }
-        return pts;
-    }
-
     function setupFabric(fCanvas) {
         fCanvas.on('selection:created', () => { if(currentTool === 'select') document.getElementById('delete-btn').style.display = 'block'; });
         fCanvas.on('selection:cleared', () => document.getElementById('delete-btn').style.display = 'none');
-        fCanvas.on('object:modified', saveState);
-        fCanvas.on('object:added', saveState);
-        fCanvas.on('object:removed', saveState);
-
-        // Restored Shift-to-Straight-Line
+        
         fCanvas.on('path:created', (opt) => {
+            if (currentTool === 'laser') {
+                const lp = opt.path;
+                lp.set({ isLaser: true, selectable: false });
+                setTimeout(() => {
+                    lp.animate('opacity', 0, { duration: 400, onChange: fCanvas.renderAll.bind(fCanvas), onComplete: () => fCanvas.remove(lp) });
+                }, 800);
+                return;
+            }
             if (isShift) {
                 const p = opt.path.path;
                 if (p.length > 1) opt.path.set({ path: [['M', p[0][1], p[0][2]], ['L', p[p.length-1][1], p[p.length-1][2]]] });
@@ -199,19 +262,33 @@
 
         let drawing = false, obj, sx, sy;
         fCanvas.on('mouse:down', (o) => {
-            if (currentTool === 'select') return;
+            if (currentTool === 'select' || currentTool === 'laser' || currentTool === 'pen' || currentTool === 'highlighter') return;
             if (currentTool === 'eraser') { if (o.target) fCanvas.remove(o.target); return; }
             let ptr = fCanvas.getPointer(o.e); sx = ptr.x; sy = ptr.y;
+            
             if (currentTool === 'text') {
-                const text = new fabric.IText('Text...', { left: sx, top: sy, fontSize: 24, fill: currentColor });
-                fCanvas.add(text); fCanvas.setActiveObject(text);
-                return;
+                const text = new fabric.IText('Text...', { left: sx, top: sy, fontSize: 24 });
+                if (isGradient) {
+                    text.set('fill', new fabric.Gradient({
+                        type: 'linear', coords: { x1: 0, y1: 0, x2: text.width, y2: 0 },
+                        colorStops: [{ offset: 0, color: '#007bff' }, { offset: 1, color: '#6610f2' }]
+                    }));
+                } else { text.set('fill', currentColor); }
+                fCanvas.add(text); fCanvas.setActiveObject(text); text.enterEditing(); return;
             }
             drawing = true;
             if (currentTool === 'rect') obj = new fabric.Rect({ left: sx, top: sy, width: 1, height: 1, fill: 'transparent', stroke: currentColor, strokeWidth: currentWidth });
-            else if (currentTool === 'star') obj = new fabric.Polygon(getStar(5, 50, 25), { left: sx, top: sy, fill: 'transparent', stroke: currentColor, strokeWidth: currentWidth, originX: 'center', originY: 'center' });
+            else if (currentTool === 'star') {
+                const rot = Math.PI/2*3, step = Math.PI/5, pts = [];
+                for(let i=0; i<5; i++){
+                    pts.push({x: Math.cos(rot + i*step*2)*50, y: Math.sin(rot + i*step*2)*50});
+                    pts.push({x: Math.cos(rot + (i*2+1)*step)*25, y: Math.sin(rot + (i*2+1)*step)*25});
+                }
+                obj = new fabric.Polygon(pts, { left: sx, top: sy, fill: 'transparent', stroke: currentColor, strokeWidth: currentWidth, originX: 'center', originY: 'center' });
+            }
             if(obj) fCanvas.add(obj);
         });
+
         fCanvas.on('mouse:move', (o) => {
             if (!drawing) return;
             let p = fCanvas.getPointer(o.e);
@@ -229,7 +306,8 @@
 
     function refreshTools() {
         canvases.forEach(c => {
-            c.isDrawingMode = (currentTool === 'pen' || currentTool === 'highlighter');
+            c.upperCanvasEl.className = `upper-canvas cursor-${currentTool}`;
+            c.isDrawingMode = (currentTool === 'pen' || currentTool === 'highlighter' || currentTool === 'laser');
             if (c.isDrawingMode) {
                 c.freeDrawingBrush = new fabric.PencilBrush(c);
                 updateBrushStyle();
@@ -256,19 +334,70 @@
         };
     });
 
-    async function exportPDF() {
-        document.getElementById('loader').style.display = 'flex';
-        const doc = new jsPDF({ unit: 'px', format: [canvases[0].width, canvases[0].height], hotfixes: ["px_scaling"] });
-        for (let i = 0; i < canvases.length; i++) {
-            const c = canvases[i];
-            if (i > 0) doc.addPage([c.width, c.height], c.width > c.height ? 'l' : 'p');
-            const bg = document.querySelectorAll('.page-body canvas:first-child')[i];
-            doc.addImage(bg.toDataURL('image/jpeg', 1.0), 'JPEG', 0, 0, c.width, c.height);
-            doc.addImage(c.toDataURL({ format: 'png' }), 'PNG', 0, 0, c.width, c.height);
+async function exportPDF() {
+    document.getElementById('loader-text').innerText = "Exporting PDF...";
+    document.getElementById('loader').style.display = 'flex';
+
+    const doc = new jsPDF({
+        unit: 'px',
+        format: [canvases[0].width, canvases[0].height],
+        hotfixes: ["px_scaling"]
+    });
+
+    for (let i = 0; i < canvases.length; i++) {
+        const fCanvas = canvases[i];
+
+        if (i > 0) {
+            doc.addPage(
+                [fCanvas.width, fCanvas.height],
+                fCanvas.width > fCanvas.height ? 'l' : 'p'
+            );
         }
-        doc.save("edited_restored.pdf");
-        document.getElementById('loader').style.display = 'none';
+
+        // ✅ Get background PDF canvas
+        const bgCanvas = document.querySelectorAll('.page-body canvas:first-child')[i];
+
+        // ✅ Create merged canvas
+        const merged = document.createElement('canvas');
+        merged.width = bgCanvas.width;
+        merged.height = bgCanvas.height;
+
+        const ctx = merged.getContext('2d');
+
+        // ✅ Draw PDF background
+        ctx.drawImage(bgCanvas, 0, 0);
+
+        // 🔥 IMPORTANT FIX: Reset zoom temporarily
+        const originalZoom = fCanvas.getZoom();
+        fCanvas.setZoom(1);
+        fCanvas.renderAll();
+
+        // ✅ Export Fabric correctly
+        const fabricImg = new Image();
+        fabricImg.src = fCanvas.toDataURL({
+            format: 'png',
+            multiplier: originalZoom // 🔥 match zoom scale
+        });
+
+        await new Promise(resolve => {
+            fabricImg.onload = () => {
+                ctx.drawImage(fabricImg, 0, 0);
+                resolve();
+            };
+        });
+
+        // ✅ Restore zoom
+        fCanvas.setZoom(originalZoom);
+        fCanvas.renderAll();
+
+        // ✅ Add to PDF
+        const finalImg = merged.toDataURL('image/jpeg', 1.0);
+        doc.addImage(finalImg, 'JPEG', 0, 0, merged.width, merged.height);
     }
+
+    doc.save(currentFileName || "pdf_edited.pdf");
+    document.getElementById('loader').style.display = 'none';
+}
 </script>
 </body>
 </html>
