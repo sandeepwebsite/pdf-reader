@@ -1,5 +1,5 @@
 // Increment version to trigger an update for users
-const CACHE_NAME = 'v1.0.10'; 
+const CACHE_NAME = 'v1.0.11'; 
 
 const ASSETS = [
   './',
