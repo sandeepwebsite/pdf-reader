@@ -447,9 +447,28 @@ function removePage(num) {
     c.selection = (currentTool === 'select');
     
     if (c.isDrawingMode) {
-      c.freeDrawingBrush = new fabric.PencilBrush(c);
-      c.freeDrawingBrush.color = currentTool === 'highlighter' ? color + '70' : (currentTool === 'laser' ? 'red' : color);
-      c.freeDrawingBrush.width = currentTool === 'highlighter' ? size * 5 : size;
+        c.freeDrawingBrush = new fabric.PencilBrush(c);
+        
+        // Set Colors
+        if (currentTool === 'laser') {
+            c.freeDrawingBrush.color = '#ff0000'; // Pure Laser Red
+            // Add the Glow Effect (Shadow)
+            c.freeDrawingBrush.shadow = new fabric.Shadow({
+                color: 'rgba(255, 0, 0, 0.9)',
+                blur: 10,      // This creates the "glow"
+                offsetX: 0,
+                offsetY: 0
+            });
+            c.freeDrawingBrush.width = size;
+        } else if (currentTool === 'highlighter') {
+            c.freeDrawingBrush.color = color + '70';
+            c.freeDrawingBrush.width = size * 5;
+            c.freeDrawingBrush.shadow = null; // Remove glow for other tools
+        } else {
+            c.freeDrawingBrush.color = color;
+            c.freeDrawingBrush.width = size;
+            c.freeDrawingBrush.shadow = null; // Remove glow for other tools
+        }
     }
     c.forEachObject(o => { o.selectable = c.selection; o.evented = (c.selection || currentTool === 'eraser'); });
   }
