@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,6 +32,23 @@
         .page-wrapper { position: relative; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); line-height: 0; display: block; }
         .canvas-container { position: absolute !important; top: 0 !important; left: 0 !important; }
 
+      .page-control {
+          padding: 0 10px;
+          font-size: 14px;
+          display: flex;
+          align-items: center;
+      }
+      /* Hide arrows in Chrome/Safari/Edge */
+      #current-page-input::-webkit-outer-spin-button,
+      #current-page-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+      }
+      /* Hide arrows in Firefox */
+      #current-page-input {
+          -moz-appearance: textfield;
+      }  
+
         #landing-page { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg); z-index: 2000; }
         .recent-list { margin-top: 20px; width: 80%; max-width: 400px; }
         .recent-item { background: var(--toolbar); padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #ddd; }
@@ -55,7 +73,7 @@
         </div>
         <div class="recent-list" id="recent-list"></div>
         <div class="pwa-footer">
-          Version: <span id="app-version">Checking...</span>
+          System Active • <span id="app-version">Checking...</span>
         </div>
     </div>
 
@@ -103,6 +121,12 @@
           <option value="#8e44ad">Purple</option>
           <option value="#ffffff">White</option>
         </select>
+
+        <div class="tool-group page-control">
+            <input type="number" id="current-page-input" value="1" min="1" 
+                   style="width: 40px; text-align: right; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
+            <span id="total-pages-display" style="margin-left: 5px;">/ 0</span>
+        </div>
         <button onclick="toggleDarkMode()"><i class="fas fa-adjust"></i></button>
         <button id="delete-btn" onclick="deleteSelection()" style="display:none; color:var(--danger);"><i class="fas fa-trash"></i></button>
         <button onclick="saveToDB()" style="color:#2ecc71;"><i class="fas fa-save"></i> Save</button>
@@ -168,15 +192,20 @@
     reader.readAsArrayBuffer(file);
   };
 
-  async function openFile(bytes, name, edits) {
+async function openFile(bytes, name, edits) {
     setLoader(true, "Building Pages...");
     currentFileName = name;
     savedEdits = edits || [];
     pdfDoc = await pdfjsLib.getDocument({data: bytes}).promise;
+    
+    // Update the UI totals
+    document.getElementById('total-pages-display').innerText = `/ ${pdfDoc.numPages}`;
+    document.getElementById('current-page-input').max = pdfDoc.numPages;
+
     await buildViewer();
     setLoader(false);
     initUI();
-  }
+}
 
   async function buildViewer() {
     const viewer = document.getElementById('viewer');
@@ -186,7 +215,7 @@
 
     for (let i = 1; i <= pdfDoc.numPages; i++) {
       const page = await pdfDoc.getPage(i);
-      const vp = page.getViewport({ scale: 2.0 });
+      const vp = page.getViewport({ scale: 1.5 });
       pageViewports.push(vp);
 
       const wrap = document.createElement('div');
@@ -204,14 +233,102 @@
     }
   }
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const num = parseInt(entry.target.dataset.pageNum);
-        if (!canvases[num - 1]) renderPage(num, entry.target);
-      }
+  // 1. Setup the Jump-to-Page logic
+    const pageInput = document.getElementById('current-page-input');
+    const totalDisplay = document.getElementById('total-pages-display');
+
+    pageInput.onchange = () => {
+        const pageNum = parseInt(pageInput.value);
+        if (pageNum >= 1 && pageNum <= pdfDoc.numPages) {
+            const targetPage = document.getElementById(`page-wrap-${pageNum}`);
+            if (targetPage) {
+                viewer.scrollTo({
+                top: targetPage.offsetTop,
+                behavior: 'auto' // IMPORTANT: remove smooth
+              });
+            }
+        } else {
+            // Reset to actual current page if input is invalid
+            updatePageCounter(); 
+        }
+    };
+
+// 2. Update counter on scroll
+function updatePageCounter() {
+    const viewer = document.getElementById('viewer');
+    const wraps = document.querySelectorAll('.page-wrapper');
+    let currentPage = 1;
+
+    wraps.forEach((wrap, index) => {
+        const rect = wrap.getBoundingClientRect();
+        // If the top of the page is in the upper half of the view
+        if (rect.top < window.innerHeight / 2) {
+            currentPage = index + 1;
+        }
     });
-  }, { root: document.getElementById('viewer'), threshold: 0.1 });
+    
+    // Update input only if it's not currently focused (to avoid interrupting the user)
+    if (document.activeElement !== pageInput) {
+        pageInput.value = currentPage;
+    }
+}
+
+// 3. Attach the scroll listener to the viewer
+
+let scrollTimeout;
+
+viewer.addEventListener('scroll', () => {
+  if (scrollTimeout) return;
+
+  scrollTimeout = setTimeout(() => {
+    updatePageCounter();
+    scrollTimeout = null;
+  }, 100); // throttle
+});
+document.getElementById('viewer').addEventListener('scroll', updatePageCounter);
+
+// 4. Initialize the total page count (Call this inside your openFile function)
+// Add this line inside your `openFile` function after `pdfDoc` is defined:
+// totalDisplay.innerText = `/ ${pdfDoc.numPages}`;
+// pageInput.max = pdfDoc.numPages;
+
+let activePages = new Set();
+const MAX_ACTIVE = 6; // only keep 6 pages in memory
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const num = parseInt(entry.target.dataset.pageNum);
+
+    if (entry.isIntersecting) {
+      if (!canvases[num - 1]) {
+        renderPage(num, entry.target);
+      }
+      activePages.add(num);
+
+      // Remove old pages if too many
+      if (activePages.size > MAX_ACTIVE) {
+        const first = activePages.values().next().value;
+        removePage(first);
+        activePages.delete(first);
+      }
+    }
+  });
+}, { root: document.getElementById('viewer'), threshold: 0.2 });
+
+function removePage(num) {
+  const idx = num - 1;
+  const canvas = canvases[idx];
+
+  if (canvas) {
+    canvas.dispose(); // free memory
+    canvases[idx] = null;
+  }
+
+  const wrap = document.getElementById(`page-wrap-${num}`);
+  if (wrap) {
+    wrap.innerHTML = ''; // remove DOM content
+  }
+}
 
   async function renderPage(num, container) {
     const idx = num - 1;
@@ -244,6 +361,8 @@
     canvases[idx] = fCanvas;
     applyToolToCanvas(fCanvas);
   }
+
+
 
   function setupCanvasEvents(c) {
     c.on('selection:created', () => document.getElementById('delete-btn').style.display = 'block');
@@ -367,7 +486,9 @@
       compress: true 
     });
 
-    for (let i = 0; i < pdfDoc.numPages; i++) {
+    const INITIAL_PAGES = 10;
+
+    for (let i = 1; i <= Math.min(INITIAL_PAGES, pdfDoc.numPages); i++) {
       if (i > 0) {
         const vp = pageViewports[i];
         doc.addPage([vp.width / 2, vp.height / 2], vp.width > vp.height ? 'l' : 'p');
