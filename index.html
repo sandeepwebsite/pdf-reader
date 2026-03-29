@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,72 +8,49 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
     <link rel="icon" type="image/png" href="./images/logo.png">
     <link rel="apple-touch-icon" href="./images/logo.png">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#007bff">
-
     <style>
         :root { --bg: #f0f2f5; --toolbar: #ffffff; --text: #1c1e21; --accent: #007bff; --danger: #dc3545; }
         body.dark-mode { --bg: #18191a; --toolbar: #242526; --text: #e4e6eb; }
         body.dark-mode .pdf-canvas { filter: invert(0.9) hue-rotate(180deg); }
-        
         body { margin: 0; font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
         .toolbar { background: var(--toolbar); padding: 8px; display: none; flex-wrap: wrap; align-items: center; gap: 8px; border-bottom: 1px solid rgba(0,0,0,0.1); z-index: 1000; }
         .tool-group { display: flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 2px; gap: 2px; align-items: center; }
-        
         button, select { border: none; background: transparent; color: var(--text); padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
         button.active { background: var(--accent); color: white; }
-
         #viewer { flex: 1; overflow-y: auto; padding: 20px; display: none; flex-direction: column; align-items: center; gap: 30px; }
         .page-wrapper { position: relative; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); line-height: 0; display: block; }
         .canvas-container { position: absolute !important; top: 0 !important; left: 0 !important; }
-
-      .page-control {
-          padding: 0 10px;
-          font-size: 14px;
-          display: flex;
-          align-items: center;
-      }
-      /* Hide arrows in Chrome/Safari/Edge */
-      #current-page-input::-webkit-outer-spin-button,
-      #current-page-input::-webkit-inner-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
-      }
-      /* Hide arrows in Firefox */
-      #current-page-input {
-          -moz-appearance: textfield;
-      }  
-
+        .page-control { padding: 0 10px; font-size: 14px; display: flex; align-items: center; }
+        #current-page-input::-webkit-outer-spin-button, #current-page-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        #current-page-input { -moz-appearance: textfield; }  
         #landing-page { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg); z-index: 2000; }
         .recent-list { margin-top: 20px; width: 80%; max-width: 400px; }
         .recent-item { background: var(--toolbar); padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #ddd; }
-
         .zoom-controls { position: fixed; bottom: 20px; right: 20px; display: none; flex-direction: column; gap: 10px; z-index: 1001; }
         .zoom-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--toolbar); border: 1px solid #ccc; cursor: pointer; }
         #loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
-
         .pwa-footer { position: absolute; bottom: 15px; font-size: 12px; opacity: 0.6; }
-
         #update-banner { display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 12px 24px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 3001; cursor: pointer; font-weight: bold; animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { bottom: -50px; } to { bottom: 20px; } }
+
+        .canvas-container, .upper-canvas {
+            cursor: inherit !important;
+        }
     </style>
 </head>
 <body>
     <div id="loader"><i class="fas fa-sync fa-spin fa-2x"></i><p id="loader-msg">Loading...</p></div>
-    
     <div id="landing-page">
         <div onclick="document.getElementById('file-input').click()" style="background:var(--toolbar); padding:40px; border-radius:20px; border:3px dashed #ccc; text-align:center; cursor:pointer; width:80%; max-width:400px;">
             <i class="fas fa-file-pdf fa-4x" style="color:#e74c3c"></i>
             <h3>Open PDF</h3>
         </div>
         <div class="recent-list" id="recent-list"></div>
-        <div class="pwa-footer">
-          System Active • <span id="app-version">Checking...</span>
-        </div>
+        <div class="pwa-footer"> Version : <span id="app-version">Checking...</span></div>
     </div>
 
     <div class="toolbar" id="main-toolbar">
@@ -88,43 +64,27 @@
         </div>
         <div class="tool-group">
             <select id="size-dropdown" onchange="updateStyles()">
-              <option value="1">1 px</option>
-              <option value="2">2 px</option>
-              <option value="3" selected>3 px</option>
-              <option value="4">4 px</option>
-              <option value="5">5 px</option>
-              <option value="6">6 px</option>
-              
-              <option value="8">8 px</option>
-              <option value="10">10 px</option>
-              <option value="12">12 px</option>
-              <option value="14">14 px</option>
-              <option value="16">16 px</option>
-              
-              <option value="18">18 px</option>
-              <option value="20">20 px</option>
-              <option value="24">24 px</option>
-              <option value="28">28 px</option>
+              <option value="1">1 px</option><option value="2">2 px</option><option value="3" selected>3 px</option>
+              <option value="4">4 px</option><option value="5">5 px</option><option value="8">8 px</option>
+              <option value="12">12 px</option><option value="16">16 px</option><option value="24">24 px</option>
               <option value="32">32 px</option>
             </select>
         </div>
         <div class="tool-group">
             <button class="tool-btn" data-tool="rect"><i class="fas fa-square"></i></button>
+            <button class="tool-btn" data-tool="star"><i class="fas fa-star"></i></button>
+            <button class="tool-btn" data-tool="tick"><i class="fas fa-check"></i></button>
+            <button class="tool-btn" data-tool="cross"><i class="fa fa-certificate" aria-hidden="true"></i></button> 
             <button class="tool-btn" data-tool="text"><i class="fas fa-font"></i></button>
         </div>
-       <select id="color-selector" onchange="updateStyles()">
-          <option value="#000000">Black</option>
-          <option value="#ff0000">Red</option>
-          <option value="#0000ff">Blue</option>
-          <option value="#27ae60">Green</option>
-          <option value="#f1c40f">Yellow</option>
-          <option value="#8e44ad">Purple</option>
+        <select id="color-selector" onchange="updateStyles()">
+          <option value="#000000">Black</option><option value="#ff0000">Red</option>
+          <option value="#0000ff">Blue</option><option value="#27ae60">Green</option>
+          <option value="#f1c40f">Yellow</option><option value="#8e44ad">Purple</option>
           <option value="#ffffff">White</option>
         </select>
-
         <div class="tool-group page-control">
-            <input type="number" id="current-page-input" value="1" min="1" 
-                   style="width: 40px; text-align: right; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
+            <input type="number" id="current-page-input" value="1" min="1" style="width: 40px; text-align: right; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
             <span id="total-pages-display" style="margin-left: 5px;">/ 0</span>
         </div>
         <button onclick="toggleDarkMode()"><i class="fas fa-adjust"></i></button>
@@ -134,14 +94,12 @@
     </div>
 
     <div id="viewer"></div>
-
     <div class="zoom-controls" id="zoom-ui">
         <button class="zoom-btn" onclick="applyZoom(0.1)"><i class="fas fa-plus"></i></button>
         <button class="zoom-btn" onclick="applyZoom(-0.1)"><i class="fas fa-minus"></i></button>
     </div>
 
     <input type="file" id="file-input" hidden accept="application/pdf" />
-
     <div id="update-banner" onclick="window.location.reload()">
         <i class="fas fa-sync-alt"></i> New Version Available! Click to Update
     </div>
@@ -151,6 +109,7 @@
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
   let pdfDoc = null, canvases = [], currentTool = 'select', zoomLevel = 1.0, currentFileName = "", db, pageViewports = [], savedEdits = [];
+  let sx = 0, sy = 0, obj = null, drawing = false;
 
   // DB Setup
   const dbReq = indexedDB.open("PDFProDB_V5", 1);
@@ -159,6 +118,35 @@
 
   function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
 
+  function getDynamicCursor() {
+    const color = document.getElementById('color-selector').value;
+    const size = parseInt(document.getElementById('size-dropdown').value);
+    const cursorSize = Math.max(size, 8);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cursorSize * 2}" height="${cursorSize * 2}" viewBox="0 0 ${cursorSize * 2} ${cursorSize * 2}"><circle cx="${cursorSize}" cy="${cursorSize}" r="${cursorSize / 2}" fill="${color}" stroke="white" stroke-width="1"/></svg>`;
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    return `url(${url}) ${cursorSize} ${cursorSize}, auto`;
+  }
+
+function updateCursor() {
+    const wrappers = document.querySelectorAll('.page-wrapper');
+    const viewer = document.getElementById('viewer');
+    let cursorStyle = 'default';
+
+    if (['pen', 'highlighter', 'laser'].includes(currentTool)) cursorStyle = getDynamicCursor();
+    else if (currentTool === 'eraser') cursorStyle = 'crosshair';
+    else if (['tick', 'cross'].includes(currentTool)) cursorStyle = 'cell';
+
+    wrappers.forEach(wrap => {
+        wrap.style.cursor = cursorStyle;
+        // Force the internal Fabric container to follow the wrapper
+        const canvasContainer = wrap.querySelector('.canvas-container');
+        if (canvasContainer) {
+            canvasContainer.style.cursor = cursorStyle;
+        }
+    });
+    viewer.style.cursor = 'default';
+}
   async function loadRecentFiles() {
     const list = document.getElementById('recent-list');
     const req = db.transaction("files", "readonly").objectStore("files").getAll();
@@ -172,9 +160,7 @@
           if(e.target.classList.contains('fa-trash')) {
             db.transaction("files", "readwrite").objectStore("files").delete(file.name);
             loadRecentFiles();
-          } else {
-            openFile(file.pdfBytes, file.name, file.edits);
-          }
+          } else { openFile(file.pdfBytes, file.name, file.edits); }
         };
         list.appendChild(item);
       });
@@ -192,217 +178,116 @@
     reader.readAsArrayBuffer(file);
   };
 
-async function openFile(bytes, name, edits) {
+  async function openFile(bytes, name, edits) {
     setLoader(true, "Building Pages...");
     currentFileName = name;
     savedEdits = edits || [];
     pdfDoc = await pdfjsLib.getDocument({data: bytes}).promise;
-    
-    // Update the UI totals
     document.getElementById('total-pages-display').innerText = `/ ${pdfDoc.numPages}`;
     document.getElementById('current-page-input').max = pdfDoc.numPages;
-
     await buildViewer();
     setLoader(false);
     initUI();
-}
+  }
 
   async function buildViewer() {
     const viewer = document.getElementById('viewer');
     viewer.innerHTML = '';
     canvases = new Array(pdfDoc.numPages).fill(null);
     pageViewports = [];
-
     for (let i = 1; i <= pdfDoc.numPages; i++) {
       const page = await pdfDoc.getPage(i);
       const vp = page.getViewport({ scale: 1.5 });
       pageViewports.push(vp);
-
       const wrap = document.createElement('div');
       wrap.className = 'page-wrapper';
       wrap.id = `page-wrap-${i}`;
       wrap.dataset.pageNum = i;
-      
       const displayWidth = Math.min(vp.width / 2, window.innerWidth - 40);
-      const displayHeight = (vp.height / vp.width) * displayWidth;
-      
       wrap.style.width = displayWidth + "px";
-      wrap.style.height = displayHeight + "px";
+      wrap.style.height = (vp.height / vp.width) * displayWidth + "px";
       viewer.appendChild(wrap);
       observer.observe(wrap);
     }
   }
 
-  // 1. Setup the Jump-to-Page logic
-    const pageInput = document.getElementById('current-page-input');
-    const totalDisplay = document.getElementById('total-pages-display');
-
-    pageInput.onchange = () => {
-        const pageNum = parseInt(pageInput.value);
-        if (pageNum >= 1 && pageNum <= pdfDoc.numPages) {
-            const targetPage = document.getElementById(`page-wrap-${pageNum}`);
-            if (targetPage) {
-                viewer.scrollTo({
-                top: targetPage.offsetTop,
-                behavior: 'auto' // IMPORTANT: remove smooth
-              });
-            }
-        } else {
-            // Reset to actual current page if input is invalid
-            updatePageCounter(); 
-        }
-    };
-
-// 2. Update counter on scroll
-function updatePageCounter() {
-    const viewer = document.getElementById('viewer');
-    const wraps = document.querySelectorAll('.page-wrapper');
-    let currentPage = 1;
-
-    wraps.forEach((wrap, index) => {
-        const rect = wrap.getBoundingClientRect();
-        // If the top of the page is in the upper half of the view
-        if (rect.top < window.innerHeight / 2) {
-            currentPage = index + 1;
-        }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const num = parseInt(entry.target.dataset.pageNum);
+      if (entry.isIntersecting && !canvases[num - 1]) renderPage(num, entry.target);
     });
-    
-    // Update input only if it's not currently focused (to avoid interrupting the user)
-    if (document.activeElement !== pageInput) {
-        pageInput.value = currentPage;
-    }
-}
-
-// 3. Attach the scroll listener to the viewer
-
-let scrollTimeout;
-
-viewer.addEventListener('scroll', () => {
-  if (scrollTimeout) return;
-
-  scrollTimeout = setTimeout(() => {
-    updatePageCounter();
-    scrollTimeout = null;
-  }, 100); // throttle
-});
-document.getElementById('viewer').addEventListener('scroll', updatePageCounter);
-
-// 4. Initialize the total page count (Call this inside your openFile function)
-// Add this line inside your `openFile` function after `pdfDoc` is defined:
-// totalDisplay.innerText = `/ ${pdfDoc.numPages}`;
-// pageInput.max = pdfDoc.numPages;
-
-let activePages = new Set();
-const MAX_ACTIVE = 6; // only keep 6 pages in memory
-
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    const num = parseInt(entry.target.dataset.pageNum);
-
-    if (entry.isIntersecting) {
-      if (!canvases[num - 1]) {
-        renderPage(num, entry.target);
-      }
-      activePages.add(num);
-
-      // Remove old pages if too many
-      if (activePages.size > MAX_ACTIVE) {
-        const first = activePages.values().next().value;
-        removePage(first);
-        activePages.delete(first);
-      }
-    }
-  });
-}, { root: document.getElementById('viewer'), threshold: 0.2 });
-
-function removePage(num) {
-  const idx = num - 1;
-  const canvas = canvases[idx];
-
-  if (canvas) {
-    canvas.dispose(); // free memory
-    canvases[idx] = null;
-  }
-
-  const wrap = document.getElementById(`page-wrap-${num}`);
-  if (wrap) {
-    wrap.innerHTML = ''; // remove DOM content
-  }
-}
+  }, { root: document.getElementById('viewer'), threshold: 0.2 });
 
   async function renderPage(num, container) {
     const idx = num - 1;
     const page = await pdfDoc.getPage(num);
     const vp = pageViewports[idx];
-    
     container.innerHTML = '';
     const bg = document.createElement('canvas');
     bg.className = 'pdf-canvas';
     bg.width = vp.width; bg.height = vp.height;
     bg.style.width = "100%"; bg.style.height = "100%";
-    
     const fg = document.createElement('canvas');
     fg.id = `fg-${num}`;
-
     container.append(bg, fg);
     await page.render({ canvasContext: bg.getContext('2d'), viewport: vp }).promise;
-
-    const fCanvas = new fabric.Canvas(fg.id, { 
-      width: container.offsetWidth, 
-      height: container.offsetHeight,
-      selection: currentTool === 'select'
-    });
-
+    const fCanvas = new fabric.Canvas(fg.id, { width: container.offsetWidth, height: container.offsetHeight, selection: currentTool === 'select' });
     fCanvas.setZoom((container.offsetWidth / (vp.width/2)) * 0.5 * zoomLevel);
-    
     setupCanvasEvents(fCanvas);
     if (savedEdits[idx]) fCanvas.loadFromJSON(savedEdits[idx], () => fCanvas.renderAll());
-    
     canvases[idx] = fCanvas;
     applyToolToCanvas(fCanvas);
+    updateCursor();
   }
-
-
 
   function setupCanvasEvents(c) {
     c.on('selection:created', () => document.getElementById('delete-btn').style.display = 'block');
     c.on('selection:cleared', () => document.getElementById('delete-btn').style.display = 'none');
-    
     c.on('path:created', (opt) => {
       if (currentTool === 'laser') {
-        setTimeout(() => opt.path.animate('opacity', 0, { 
-          duration: 600, 
-          onComplete: () => c.remove(opt.path) 
-        }), 800);
+        setTimeout(() => opt.path.animate('opacity', 0, { duration: 600, onComplete: () => c.remove(opt.path) }), 800);
       }
     });
 
-    let drawing = false, obj, sx, sy;
-
     c.on('mouse:down', (o) => {
       if (['select','pen','highlighter','eraser','laser'].includes(currentTool)) {
-        if(currentTool === 'eraser' && o.target) { c.remove(o.target); c.renderAll(); }
-        return;
+          if(currentTool === 'eraser' && o.target) { c.remove(o.target); c.renderAll(); }
+          return;
       }
       let ptr = c.getPointer(o.e); sx = ptr.x; sy = ptr.y;
       const color = document.getElementById('color-selector').value;
-      const size = parseInt(document.getElementById('size-dropdown').value);
+      const size = Math.max(parseInt(document.getElementById('size-dropdown').value), 2);
+
+      if (currentTool === 'tick') {
+          const tick = new fabric.Path(`M ${sx-10} ${sy} L ${sx-3} ${sy+7} L ${sx+12} ${sy-8}`, {
+              fill: '', stroke: color === "#000000" ? "#27ae60" : color, strokeWidth: size * 1.5,
+              strokeLineCap: 'round', strokeLineJoin: 'round', left: sx, top: sy, originX: 'center', originY: 'center'
+          });
+          c.add(tick); return;
+      }
+
+      if (currentTool === 'cross') {
+          const pts = [];
+          for(let i=0; i<24; i++){ 
+              let r = (i%2==0) ? 12 : 8; 
+              pts.push({ x: Math.cos(i * Math.PI / 12) * r, y: Math.sin(i * Math.PI / 12) * r }); 
+          }
+          const cert = new fabric.Polygon(pts, { 
+              left: sx, top: sy, fill: color === "#000000" ? "#f1c40f" : color, 
+              stroke: color, strokeWidth: 1, originX: 'center', originY: 'center' 
+          });
+          c.add(cert); return;
+      }
 
       if (currentTool === 'text') {
         c.add(new fabric.IText('Type here', { left: sx, top: sy, fill: color, fontSize: 20 }));
-        switchTool('select');
-        return;
+        switchTool('select'); return;
       }
 
       drawing = true;
-      if (currentTool === 'rect') {
-        obj = new fabric.Rect({ left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
-      } else if (currentTool === 'star') {
-        const pts = []; 
-        for(let i=0; i<10; i++){ 
-          let r = (i%2==0)?30:15; 
-          pts.push({x:Math.cos(Math.PI/2*3 + i*Math.PI/5)*r, y:Math.sin(Math.PI/2*3 + i*Math.PI/5)*r}); 
-        }
+      if (currentTool === 'rect') obj = new fabric.Rect({ left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
+      else if (currentTool === 'star') {
+        const pts = []; for(let i=0; i<10; i++){ let r = (i%2==0)?30:15; pts.push({x:Math.cos(Math.PI/2*3 + i*Math.PI/5)*r, y:Math.sin(Math.PI/2*3 + i*Math.PI/5)*r}); }
         obj = new fabric.Polygon(pts, { left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
       }
       if(obj) c.add(obj);
@@ -411,77 +296,72 @@ function removePage(num) {
     c.on('mouse:move', (o) => {
       if (!drawing) return;
       let p = c.getPointer(o.e);
-      if (currentTool === 'rect') {
-        obj.set({ width: Math.abs(sx - p.x), height: Math.abs(sy - p.y), left: Math.min(sx, p.x), top: Math.min(sy, p.y) });
-      } else if (currentTool === 'star') { 
-        let d = Math.sqrt(Math.pow(sx-p.x,2)+Math.pow(sy-p.y,2)); 
-        obj.set({ scaleX: d/30, scaleY: d/30 }); 
-      }
+      if (currentTool === 'rect') obj.set({ width: Math.abs(sx - p.x), height: Math.abs(sy - p.y), left: Math.min(sx, p.x), top: Math.min(sy, p.y) });
+      else if (currentTool === 'star') { let d = Math.sqrt(Math.pow(sx-p.x,2)+Math.pow(sy-p.y,2)); obj.set({ scaleX: d/30, scaleY: d/30 }); }
       c.renderAll();
     });
-
     c.on('mouse:up', () => { drawing = false; obj = null; });
-  }
-
-  function applyZoom(v) {
-    zoomLevel = Math.max(0.4, Math.min(3, zoomLevel + v));
-    canvases.forEach((c, i) => {
-      const wrap = document.getElementById(`page-wrap-${i+1}`);
-      const vp = pageViewports[i];
-      if (!wrap) return;
-      const nw = (vp.width/2) * zoomLevel;
-      const nh = (vp.height/2) * zoomLevel;
-      wrap.style.width = nw + "px";
-      wrap.style.height = nh + "px";
-      if (c) {
-        c.setDimensions({ width: nw, height: nh });
-        c.setZoom(0.5 * zoomLevel);
-      }
-    });
-  }
-
-  function applyToolToCanvas(c) {
-    const size = parseInt(document.getElementById('size-dropdown').value);
-    const color = document.getElementById('color-selector').value;
-    c.isDrawingMode = ['pen', 'highlighter', 'laser'].includes(currentTool);
-    c.selection = (currentTool === 'select');
-    
-    if (c.isDrawingMode) {
-        c.freeDrawingBrush = new fabric.PencilBrush(c);
-        
-        // Set Colors
-        if (currentTool === 'laser') {
-            c.freeDrawingBrush.color = '#ff0000'; // Pure Laser Red
-            // Add the Glow Effect (Shadow)
-            c.freeDrawingBrush.shadow = new fabric.Shadow({
-                color: 'rgba(255, 0, 0, 0.9)',
-                blur: 10,      // This creates the "glow"
-                offsetX: 0,
-                offsetY: 0
-            });
-            c.freeDrawingBrush.width = size;
-        } else if (currentTool === 'highlighter') {
-            c.freeDrawingBrush.color = color + '70';
-            c.freeDrawingBrush.width = size * 5;
-            c.freeDrawingBrush.shadow = null; // Remove glow for other tools
-        } else {
-            c.freeDrawingBrush.color = color;
-            c.freeDrawingBrush.width = size;
-            c.freeDrawingBrush.shadow = null; // Remove glow for other tools
-        }
-    }
-    c.forEachObject(o => { o.selectable = c.selection; o.evented = (c.selection || currentTool === 'eraser'); });
   }
 
   function switchTool(t) {
     currentTool = t;
     document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
     canvases.forEach(c => { if(c) applyToolToCanvas(c); });
+    updateCursor();
   }
 
-  function updateStyles() {
-    canvases.forEach(c => { if(c) applyToolToCanvas(c); });
+function applyToolToCanvas(c) {
+    const size = parseInt(document.getElementById('size-dropdown').value);
+    const color = document.getElementById('color-selector').value;
+    
+    // Determine the cursor string for Fabric
+    let cursorStyle = 'default';
+    if (['pen', 'highlighter', 'laser'].includes(currentTool)) cursorStyle = getDynamicCursor();
+    else if (currentTool === 'eraser') cursorStyle = 'crosshair';
+    else if (['tick', 'cross'].includes(currentTool)) cursorStyle = 'cell';
+
+    // Tell Fabric to use this cursor for everything
+    c.defaultCursor = cursorStyle;
+    c.hoverCursor = cursorStyle;
+    
+    c.isDrawingMode = ['pen', 'highlighter', 'laser'].includes(currentTool);
+    c.selection = (currentTool === 'select');
+    
+    if (c.isDrawingMode) {
+        c.freeDrawingBrush = new fabric.PencilBrush(c);
+        if (currentTool === 'laser') {
+            c.freeDrawingBrush.color = '#ff0000';
+            c.freeDrawingBrush.shadow = new fabric.Shadow({ color: 'rgba(255, 0, 0, 0.9)', blur: 10, offsetX: 0, offsetY: 0 });
+            c.freeDrawingBrush.width = size;
+        } else if (currentTool === 'highlighter') {
+            c.freeDrawingBrush.color = color + '70';
+            c.freeDrawingBrush.width = size * 5;
+        } else {
+            c.freeDrawingBrush.color = color;
+            c.freeDrawingBrush.width = size;
+        }
+    }
+    
+    c.forEachObject(o => { 
+        o.selectable = c.selection; 
+        o.evented = (c.selection || currentTool === 'eraser'); 
+    });
+    
+    c.renderAll();
+}
+  function applyZoom(v) {
+    zoomLevel = Math.max(0.4, Math.min(3, zoomLevel + v));
+    canvases.forEach((c, i) => {
+      const wrap = document.getElementById(`page-wrap-${i+1}`);
+      const vp = pageViewports[i];
+      if (!wrap) return;
+      const nw = (vp.width/2) * zoomLevel, nh = (vp.height/2) * zoomLevel;
+      wrap.style.width = nw + "px"; wrap.style.height = nh + "px";
+      if (c) { c.setDimensions({ width: nw, height: nh }); c.setZoom(0.5 * zoomLevel); }
+    });
   }
+
+  function updateStyles() { canvases.forEach(c => { if(c) applyToolToCanvas(c); }); }
 
   function saveToDB() {
     const transaction = db.transaction("files", "readwrite");
@@ -495,72 +375,318 @@ function removePage(num) {
   }
 
   async function exportPDF() {
-    setLoader(true, "Finalizing PDF Layout...");
+    setLoader(true, "Finalizing PDF...");
     const firstVP = pageViewports[0];
-    const orientation = firstVP.width > firstVP.height ? 'l' : 'p';
-    const doc = new jsPDF({ 
-      orientation: orientation, 
-      unit: 'pt', 
-      format: [firstVP.width / 2, firstVP.height / 2],
-      compress: true 
-    });
-
-    const INITIAL_PAGES = 10;
-
-    for (let i = 1; i <= Math.min(INITIAL_PAGES, pdfDoc.numPages); i++) {
-      if (i > 0) {
-        const vp = pageViewports[i];
-        doc.addPage([vp.width / 2, vp.height / 2], vp.width > vp.height ? 'l' : 'p');
-      }
-      const page = await pdfDoc.getPage(i + 1);
-      const vp = pageViewports[i];
+    const doc = new jsPDF({ orientation: firstVP.width > firstVP.height ? 'l' : 'p', unit: 'pt', format: [firstVP.width / 2, firstVP.height / 2] });
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      if (i > 1) { const vp = pageViewports[i-1]; doc.addPage([vp.width / 2, vp.height / 2], vp.width > vp.height ? 'l' : 'p'); }
+      const page = await pdfDoc.getPage(i);
+      const vp = pageViewports[i-1];
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = vp.width; 
-      tempCanvas.height = vp.height;
-      const ctx = tempCanvas.getContext('2d');
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      
-      const state = canvases[i] ? canvases[i].toJSON() : savedEdits[i];
-      if (state && state.objects.length > 0) {
-        const fOff = new fabric.StaticCanvas(null, { width: vp.width, height: vp.height });
-        await new Promise(resolve => {
-          fOff.loadFromJSON(state, () => {
-            fOff.setZoom(2.0); 
-            fOff.renderAll();
-            resolve();
-          });
-        });
-        const overlay = await new Promise(resolve => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.src = fOff.toDataURL({ format: 'png' });
-        });
-        ctx.drawImage(overlay, 0, 0, vp.width, vp.height);
-        fOff.dispose();
-      }
-      const imgData = tempCanvas.toDataURL('image/jpeg', 0.85);
-      doc.addImage(imgData, 'JPEG', 0, 0, vp.width / 2, vp.height / 2, null, 'FAST');
+      tempCanvas.width = vp.width; tempCanvas.height = vp.height;
+      await page.render({ canvasContext: tempCanvas.getContext('2d'), viewport: vp }).promise;
+      doc.addImage(tempCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, vp.width / 2, vp.height / 2);
     }
     doc.save(currentFileName.replace(".pdf", "_edited.pdf"));
     setLoader(false);
   }
 
-  function deleteSelection() {
-    canvases.forEach(c => { if(c) { const act = c.getActiveObjects(); c.remove(...act); c.discardActiveObject(); c.renderAll(); } });
-  }
-
+  function deleteSelection() { canvases.forEach(c => { if(c) { c.remove(...c.getActiveObjects()); c.discardActiveObject(); c.renderAll(); } }); }
   function setLoader(s, t) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; document.getElementById('loader-msg').innerText = t; }
-  
-  function initUI() { 
-    document.getElementById('landing-page').style.display = 'none'; 
-    document.getElementById('main-toolbar').style.display = 'flex'; 
-    document.getElementById('viewer').style.display = 'flex'; 
-    document.getElementById('zoom-ui').style.display = 'flex'; 
-  }
-
+  function initUI() { document.getElementById('landing-page').style.display = 'none'; document.getElementById('main-toolbar').style.display = 'flex'; document.getElementById('viewer').style.display = 'flex'; document.getElementById('zoom-ui').style.display = 'flex'; }
   document.querySelectorAll('.tool-btn').forEach(btn => btn.onclick = () => switchTool(btn.dataset.tool));
 
-    async function updateAppVersionUI() {
+  // Scroll Sync for Page Input
+  document.getElementById('viewer').addEventListener('scroll', () => {
+    const wraps = document.querySelectorAll('.page-wrapper');
+    let currentPage = 1;
+    wraps.forEach((wrap, index) => { if (wrap.getBoundingClientRect().top < window.innerHeight / 2) currentPage = index + 1; });
+    const pInput = document.getElementById('current-page-input');
+    if (document.activeElement !== pInput) pInput.value = currentPage;
+  });
+</script><script>
+  const { jsPDF } = window.jspdf;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  let pdfDoc = null, canvases = [], currentTool = 'select', zoomLevel = 1.0, currentFileName = "", db, pageViewports = [], savedEdits = [];
+  let sx = 0, sy = 0, obj = null, drawing = false;
+
+  // DB Setup
+  const dbReq = indexedDB.open("PDFProDB_V5", 1);
+  dbReq.onupgradeneeded = e => { e.target.result.createObjectStore("files", { keyPath: "name" }); };
+  dbReq.onsuccess = e => { db = e.target.result; loadRecentFiles(); };
+
+  function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+
+  function getDynamicCursor() {
+    const color = document.getElementById('color-selector').value;
+    const size = parseInt(document.getElementById('size-dropdown').value);
+    const cursorSize = Math.max(size, 8);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cursorSize * 2}" height="${cursorSize * 2}" viewBox="0 0 ${cursorSize * 2} ${cursorSize * 2}"><circle cx="${cursorSize}" cy="${cursorSize}" r="${cursorSize / 2}" fill="${color}" stroke="white" stroke-width="1"/></svg>`;
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    return `url(${url}) ${cursorSize} ${cursorSize}, auto`;
+  }
+
+  function updateCursor() {
+    const wrappers = document.querySelectorAll('.page-wrapper');
+    const viewer = document.getElementById('viewer');
+    let cursorStyle = 'default';
+
+    if (['pen', 'highlighter', 'laser'].includes(currentTool)) cursorStyle = getDynamicCursor();
+    else if (currentTool === 'eraser') cursorStyle = 'crosshair';
+    else if (['tick', 'cross'].includes(currentTool)) cursorStyle = 'cell';
+
+    wrappers.forEach(wrap => wrap.style.cursor = cursorStyle);
+    viewer.style.cursor = 'default';
+  }
+
+  async function loadRecentFiles() {
+    const list = document.getElementById('recent-list');
+    const req = db.transaction("files", "readonly").objectStore("files").getAll();
+    req.onsuccess = () => {
+      list.innerHTML = req.result.length ? '<strong>Recent Files:</strong>' : '';
+      req.result.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'recent-item';
+        item.innerHTML = `<span>${file.name}</span><i class="fas fa-trash" style="color:red"></i>`;
+        item.onclick = (e) => {
+          if(e.target.classList.contains('fa-trash')) {
+            db.transaction("files", "readwrite").objectStore("files").delete(file.name);
+            loadRecentFiles();
+          } else { openFile(file.pdfBytes, file.name, file.edits); }
+        };
+        list.appendChild(item);
+      });
+    };
+  }
+
+  document.getElementById('file-input').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function() {
+      const bytes = new Uint8Array(this.result);
+      db.transaction("files", "readwrite").objectStore("files").put({ name: file.name, pdfBytes: bytes, edits: [] });
+      openFile(bytes, file.name, []);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  async function openFile(bytes, name, edits) {
+    setLoader(true, "Building Pages...");
+    currentFileName = name;
+    savedEdits = edits || [];
+    pdfDoc = await pdfjsLib.getDocument({data: bytes}).promise;
+    document.getElementById('total-pages-display').innerText = `/ ${pdfDoc.numPages}`;
+    document.getElementById('current-page-input').max = pdfDoc.numPages;
+    await buildViewer();
+    setLoader(false);
+    initUI();
+  }
+
+  async function buildViewer() {
+    const viewer = document.getElementById('viewer');
+    viewer.innerHTML = '';
+    canvases = new Array(pdfDoc.numPages).fill(null);
+    pageViewports = [];
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const vp = page.getViewport({ scale: 1.5 });
+      pageViewports.push(vp);
+      const wrap = document.createElement('div');
+      wrap.className = 'page-wrapper';
+      wrap.id = `page-wrap-${i}`;
+      wrap.dataset.pageNum = i;
+      const displayWidth = Math.min(vp.width / 2, window.innerWidth - 40);
+      wrap.style.width = displayWidth + "px";
+      wrap.style.height = (vp.height / vp.width) * displayWidth + "px";
+      viewer.appendChild(wrap);
+      observer.observe(wrap);
+    }
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const num = parseInt(entry.target.dataset.pageNum);
+      if (entry.isIntersecting && !canvases[num - 1]) renderPage(num, entry.target);
+    });
+  }, { root: document.getElementById('viewer'), threshold: 0.2 });
+
+  async function renderPage(num, container) {
+    const idx = num - 1;
+    const page = await pdfDoc.getPage(num);
+    const vp = pageViewports[idx];
+    container.innerHTML = '';
+    const bg = document.createElement('canvas');
+    bg.className = 'pdf-canvas';
+    bg.width = vp.width; bg.height = vp.height;
+    bg.style.width = "100%"; bg.style.height = "100%";
+    const fg = document.createElement('canvas');
+    fg.id = `fg-${num}`;
+    container.append(bg, fg);
+    await page.render({ canvasContext: bg.getContext('2d'), viewport: vp }).promise;
+    const fCanvas = new fabric.Canvas(fg.id, { width: container.offsetWidth, height: container.offsetHeight, selection: currentTool === 'select' });
+    fCanvas.setZoom((container.offsetWidth / (vp.width/2)) * 0.5 * zoomLevel);
+    setupCanvasEvents(fCanvas);
+    if (savedEdits[idx]) fCanvas.loadFromJSON(savedEdits[idx], () => fCanvas.renderAll());
+    canvases[idx] = fCanvas;
+    applyToolToCanvas(fCanvas);
+    updateCursor();
+  }
+
+  function setupCanvasEvents(c) {
+    c.on('selection:created', () => document.getElementById('delete-btn').style.display = 'block');
+    c.on('selection:cleared', () => document.getElementById('delete-btn').style.display = 'none');
+    c.on('path:created', (opt) => {
+      if (currentTool === 'laser') {
+        setTimeout(() => opt.path.animate('opacity', 0, { duration: 600, onComplete: () => c.remove(opt.path) }), 800);
+      }
+    });
+
+    c.on('mouse:down', (o) => {
+      if (['select','pen','highlighter','eraser','laser'].includes(currentTool)) {
+          if(currentTool === 'eraser' && o.target) { c.remove(o.target); c.renderAll(); }
+          return;
+      }
+      let ptr = c.getPointer(o.e); sx = ptr.x; sy = ptr.y;
+      const color = document.getElementById('color-selector').value;
+      const size = Math.max(parseInt(document.getElementById('size-dropdown').value), 2);
+
+      if (currentTool === 'tick') {
+          const tick = new fabric.Path(`M ${sx-10} ${sy} L ${sx-3} ${sy+7} L ${sx+12} ${sy-8}`, {
+              fill: '', stroke: color === "#000000" ? "#27ae60" : color, strokeWidth: size * 1.5,
+              strokeLineCap: 'round', strokeLineJoin: 'round', left: sx, top: sy, originX: 'center', originY: 'center'
+          });
+          c.add(tick); return;
+      }
+
+      if (currentTool === 'cross') {
+          const pts = [];
+          for(let i=0; i<24; i++){ 
+              let r = (i%2==0) ? 12 : 8; 
+              pts.push({ x: Math.cos(i * Math.PI / 12) * r, y: Math.sin(i * Math.PI / 12) * r }); 
+          }
+          const cert = new fabric.Polygon(pts, { 
+              left: sx, top: sy, fill: color === "#000000" ? "#f1c40f" : color, 
+              stroke: color, strokeWidth: 1, originX: 'center', originY: 'center' 
+          });
+          c.add(cert); return;
+      }
+
+      if (currentTool === 'text') {
+        c.add(new fabric.IText('Type here', { left: sx, top: sy, fill: color, fontSize: 20 }));
+        switchTool('select'); return;
+      }
+
+      drawing = true;
+      if (currentTool === 'rect') obj = new fabric.Rect({ left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
+      else if (currentTool === 'star') {
+        const pts = []; for(let i=0; i<10; i++){ let r = (i%2==0)?30:15; pts.push({x:Math.cos(Math.PI/2*3 + i*Math.PI/5)*r, y:Math.sin(Math.PI/2*3 + i*Math.PI/5)*r}); }
+        obj = new fabric.Polygon(pts, { left: sx, top: sy, fill: 'transparent', stroke: color, strokeWidth: size });
+      }
+      if(obj) c.add(obj);
+    });
+
+    c.on('mouse:move', (o) => {
+      if (!drawing) return;
+      let p = c.getPointer(o.e);
+      if (currentTool === 'rect') obj.set({ width: Math.abs(sx - p.x), height: Math.abs(sy - p.y), left: Math.min(sx, p.x), top: Math.min(sy, p.y) });
+      else if (currentTool === 'star') { let d = Math.sqrt(Math.pow(sx-p.x,2)+Math.pow(sy-p.y,2)); obj.set({ scaleX: d/30, scaleY: d/30 }); }
+      c.renderAll();
+    });
+    c.on('mouse:up', () => { drawing = false; obj = null; });
+  }
+
+  function switchTool(t) {
+    currentTool = t;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+    canvases.forEach(c => { if(c) applyToolToCanvas(c); });
+    updateCursor();
+  }
+
+  function applyToolToCanvas(c) {
+    const size = parseInt(document.getElementById('size-dropdown').value);
+    const color = document.getElementById('color-selector').value;
+    c.isDrawingMode = ['pen', 'highlighter', 'laser'].includes(currentTool);
+    c.selection = (currentTool === 'select');
+    if (c.isDrawingMode) {
+        c.freeDrawingBrush = new fabric.PencilBrush(c);
+        if (currentTool === 'laser') {
+            c.freeDrawingBrush.color = '#ff0000';
+            c.freeDrawingBrush.shadow = new fabric.Shadow({ color: 'rgba(255, 0, 0, 0.9)', blur: 10, offsetX: 0, offsetY: 0 });
+            c.freeDrawingBrush.width = size;
+        } else if (currentTool === 'highlighter') {
+            c.freeDrawingBrush.color = color + '70';
+            c.freeDrawingBrush.width = size * 5;
+        } else {
+            c.freeDrawingBrush.color = color;
+            c.freeDrawingBrush.width = size;
+        }
+    }
+    c.forEachObject(o => { o.selectable = c.selection; o.evented = (c.selection || currentTool === 'eraser'); });
+  }
+
+  function applyZoom(v) {
+    zoomLevel = Math.max(0.4, Math.min(3, zoomLevel + v));
+    canvases.forEach((c, i) => {
+      const wrap = document.getElementById(`page-wrap-${i+1}`);
+      const vp = pageViewports[i];
+      if (!wrap) return;
+      const nw = (vp.width/2) * zoomLevel, nh = (vp.height/2) * zoomLevel;
+      wrap.style.width = nw + "px"; wrap.style.height = nh + "px";
+      if (c) { c.setDimensions({ width: nw, height: nh }); c.setZoom(0.5 * zoomLevel); }
+    });
+  }
+
+  function updateStyles() { canvases.forEach(c => { if(c) applyToolToCanvas(c); }); }
+
+  function saveToDB() {
+    const transaction = db.transaction("files", "readwrite");
+    const store = transaction.objectStore("files");
+    store.get(currentFileName).onsuccess = (e) => {
+      const data = e.target.result;
+      data.edits = canvases.map((c, i) => c ? c.toJSON() : savedEdits[i]);
+      store.put(data);
+      alert("Progress Saved!");
+    };
+  }
+
+  async function exportPDF() {
+    setLoader(true, "Finalizing PDF...");
+    const firstVP = pageViewports[0];
+    const doc = new jsPDF({ orientation: firstVP.width > firstVP.height ? 'l' : 'p', unit: 'pt', format: [firstVP.width / 2, firstVP.height / 2] });
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      if (i > 1) { const vp = pageViewports[i-1]; doc.addPage([vp.width / 2, vp.height / 2], vp.width > vp.height ? 'l' : 'p'); }
+      const page = await pdfDoc.getPage(i);
+      const vp = pageViewports[i-1];
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = vp.width; tempCanvas.height = vp.height;
+      await page.render({ canvasContext: tempCanvas.getContext('2d'), viewport: vp }).promise;
+      doc.addImage(tempCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, vp.width / 2, vp.height / 2);
+    }
+    doc.save(currentFileName.replace(".pdf", "_edited.pdf"));
+    setLoader(false);
+  }
+
+  function deleteSelection() { canvases.forEach(c => { if(c) { c.remove(...c.getActiveObjects()); c.discardActiveObject(); c.renderAll(); } }); }
+  function setLoader(s, t) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; document.getElementById('loader-msg').innerText = t; }
+  function initUI() { document.getElementById('landing-page').style.display = 'none'; document.getElementById('main-toolbar').style.display = 'flex'; document.getElementById('viewer').style.display = 'flex'; document.getElementById('zoom-ui').style.display = 'flex'; }
+  document.querySelectorAll('.tool-btn').forEach(btn => btn.onclick = () => switchTool(btn.dataset.tool));
+
+  // Scroll Sync for Page Input
+  document.getElementById('viewer').addEventListener('scroll', () => {
+    const wraps = document.querySelectorAll('.page-wrapper');
+    let currentPage = 1;
+    wraps.forEach((wrap, index) => { if (wrap.getBoundingClientRect().top < window.innerHeight / 2) currentPage = index + 1; });
+    const pInput = document.getElementById('current-page-input');
+    if (document.activeElement !== pInput) pInput.value = currentPage;
+  });
+</script>
+
+
+<script>
+
+async function updateAppVersionUI() {
       const versionElement = document.getElementById('app-version');
       
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -607,6 +733,7 @@ function removePage(num) {
       });
     });
   }
+
 </script>
 </body>
 </html>
