@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Handwritten Mind Map Pro</title>
+    <style>
+        /* Import the requested font */
+        @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap');
+
+        :root {
+            --bg: #f8fafc;
+            --node-bg: #ffffff;
+            --accent: #2563eb;
+            --text: #0f172a;
+            --line: #94a3b8;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            touch-action: none;
+        }
+
+        @media print {
+            #gui { display: none !important; }
+            body, html { overflow: visible !important; height: auto !important; width: auto !important; }
+            #viewport { position: static !important; overflow: visible !important; }
+            #canvas { 
+                background: none !important; 
+                position: absolute !important;
+                left: 0 !important; top: 0 !important;
+            }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+
+        #viewport {
+            width: 100vw; height: 100vh;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        #canvas {
+            position: absolute;
+            width: 5000px; height: 5000px;
+            background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+            background-size: 40px 40px;
+            transform-origin: 0 0;
+        }
+
+        #svg-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .node {
+            position: absolute;
+            min-width: 140px;
+            padding: 12px;
+            background: var(--node-bg);
+            border: 2px solid #64748b;
+            border-radius: 8px;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            touch-action: none;
+        }
+
+        .node.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        }
+
+        /* UPDATED: Added Indie Flower font to all node inputs */
+        .node input {
+            border: none; 
+            outline: none; 
+            background: transparent;
+            text-align: center; 
+            width: 100%;
+            font-family: 'Indie Flower', cursive; /* Applied requested font */
+            font-size: 18px; /* Slightly larger for handwriting legibility */
+            font-weight: 600;
+            color: var(--text);
+            cursor: text;
+        }
+
+        #gui {
+            position: fixed;
+            top: 15px; left: 15px;
+            z-index: 100;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            width: 220px;
+        }
+
+        .instructions { font-size: 11px; color: #64748b; margin-bottom: 12px; line-height: 1.4; }
+        .btn-group { display: flex; flex-direction: column; gap: 6px; }
+        
+        button {
+            padding: 10px; cursor: pointer;
+            background: var(--accent); color: white;
+            border: none; border-radius: 6px; font-weight: 600;
+            font-size: 13px;
+        }
+
+        button.secondary { background: #64748b; }
+        button.danger { background: #ef4444; }
+    </style>
+</head>
+<body>
+
+    <div id="gui">
+        <div class="instructions">
+            <b>Tab</b>: Add Child | <b>Enter</b>: Add Sibling<br>
+            <b>Del/Backspace</b>: Remove Node<br>
+            <b>Drag</b>: Nodes or Background
+        </div>
+        <div class="btn-group">
+            <button onclick="exportPDF()">Download PDF (Fit to Page)</button>
+            <button class="secondary" onclick="saveToLocal()">Save Progress</button>
+            <button class="danger" onclick="clearMap()">Reset Canvas</button>
+        </div>
+    </div>
+
+    <div id="viewport">
+        <div id="canvas">
+            <svg id="svg-canvas"></svg>
+            <div id="nodes-container"></div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const viewport = document.getElementById('viewport');
+    const nodesContainer = document.getElementById('nodes-container');
+    const svg = document.getElementById('svg-canvas');
+
+    let data = JSON.parse(localStorage.getItem('mindmap_ultra_v1')) || {
+        id: 'root', text: 'Central Idea', x: 2400, y: 2400, children: []
+    };
+    
+    let selectedId = 'root';
+    let draggedNode = null;
+    let isPanning = false;
+    let offset = { x: 0, y: 0 };
+    let panStart = { x: 0, y: 0, sL: 0, sT: 0 };
+
+    function render() {
+        nodesContainer.innerHTML = '';
+        svg.innerHTML = '';
+        drawTree(data);
+    }
+
+    function drawTree(node, parent = null) {
+        const div = document.createElement('div');
+        div.className = `node ${selectedId === node.id ? 'selected' : ''}`;
+        div.style.left = node.x + 'px';
+        div.style.top = node.y + 'px';
+        
+        const input = document.createElement('input');
+        input.value = node.text;
+
+        input.onpointerdown = (e) => e.stopPropagation();
+        input.oninput = (e) => { node.text = e.target.value; };
+        input.onfocus = () => { selectedId = node.id; };
+
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                e.stopImmediatePropagation(); 
+                input.blur(); 
+                handleKeydown({ key: e.key, preventDefault: () => {} });
+            }
+        };
+        
+        div.appendChild(input);
+
+        div.onpointerdown = (e) => {
+            if (e.target === input) return; 
+            e.preventDefault();
+            e.stopPropagation();
+            selectedId = node.id;
+            draggedNode = node;
+            offset.x = e.pageX - node.x;
+            offset.y = e.pageY - node.y;
+            render();
+        };
+
+        nodesContainer.appendChild(div);
+
+        if (parent) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const startX = parent.x + 70;
+            const startY = parent.y + 20;
+            const endX = node.x + 70;
+            const endY = node.y + 20;
+            const cp1x = startX + (endX - startX) / 2;
+            path.setAttribute('d', `M ${startX} ${startY} C ${cp1x} ${startY}, ${cp1x} ${endY}, ${endX} ${endY}`);
+            path.setAttribute('stroke', '#94a3b8');
+            path.setAttribute('fill', 'transparent');
+            path.setAttribute('stroke-width', '2');
+            svg.appendChild(path);
+        }
+
+        node.children.forEach(child => drawTree(child, node));
+    }
+
+    window.onpointermove = (e) => {
+        if (draggedNode) {
+            draggedNode.x = e.pageX - offset.x;
+            draggedNode.y = e.pageY - offset.y;
+            render();
+        } else if (isPanning) {
+            viewport.scrollLeft = panStart.sL - (e.pageX - panStart.x);
+            viewport.scrollTop = panStart.sT - (e.pageY - panStart.y);
+        }
+    };
+
+    window.onpointerup = () => {
+        draggedNode = null;
+        isPanning = false;
+        viewport.style.cursor = 'grab';
+    };
+
+    viewport.onpointerdown = (e) => {
+        if (e.target !== viewport && e.target !== canvas) return;
+        isPanning = true;
+        viewport.style.cursor = 'grabbing';
+        panStart.x = e.pageX;
+        panStart.y = e.pageY;
+        panStart.sL = viewport.scrollLeft;
+        panStart.sT = viewport.scrollTop;
+    };
+
+    function handleKeydown(e) {
+        const activeNode = findById(data, selectedId);
+        if (!activeNode) return;
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const newNode = { id: 'n'+Date.now(), text: 'New Child', x: activeNode.x + 220, y: activeNode.y, children: [] };
+            activeNode.children.push(newNode);
+            selectedId = newNode.id;
+            render();
+        } 
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            const parent = findParent(data, selectedId);
+            if (parent) {
+                const newNode = { id: 'n'+Date.now(), text: 'New Sibling', x: activeNode.x, y: activeNode.y + 80, children: [] };
+                parent.children.push(newNode);
+                selectedId = newNode.id;
+                render();
+            } else {
+                const newNode = { id: 'n'+Date.now(), text: 'New Child', x: activeNode.x + 220, y: activeNode.y, children: [] };
+                activeNode.children.push(newNode);
+                selectedId = newNode.id;
+                render();
+            }
+        }
+        else if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') {
+            if (selectedId === 'root') return;
+            const parent = findParent(data, selectedId);
+            parent.children = parent.children.filter(c => c.id !== selectedId);
+            selectedId = parent.id;
+            render();
+        }
+    }
+
+    window.onkeydown = handleKeydown;
+
+    function findById(root, id) {
+        if (root.id === id) return root;
+        for (let c of root.children) {
+            let res = findById(c, id);
+            if (res) return res;
+        }
+    }
+    function findParent(root, id) {
+        for (let c of root.children) {
+            if (c.id === id) return root;
+            let res = findParent(c, id);
+            if (res) return res;
+        }
+    }
+
+    function exportPDF() {
+        const nodes = document.querySelectorAll('.node');
+        if (!nodes.length) return;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        nodes.forEach(n => {
+            const x = parseFloat(n.style.left);
+            const y = parseFloat(n.style.top);
+            const w = n.offsetWidth;
+            const h = n.offsetHeight;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x + w > maxX) maxX = x + w;
+            if (y + h > maxY) maxY = y + h;
+        });
+
+        const contentW = maxX - minX + 100;
+        const contentH = maxY - minY + 100;
+        const paperW = 800; 
+        const paperH = 1100;
+        const fitScale = Math.min(paperW / contentW, paperH / contentH, 1);
+
+        canvas.style.transformOrigin = "0 0";
+        canvas.style.transform = `translate(${-(minX - 50)}px, ${-(minY - 50)}px) scale(${fitScale})`;
+
+        setTimeout(() => {
+            window.print();
+            canvas.style.transform = 'none';
+            render();
+        }, 250);
+    }
+
+    function saveToLocal() {
+        localStorage.setItem('mindmap_ultra_v1', JSON.stringify(data));
+        alert("Progress Saved!");
+    }
+
+    function clearMap() {
+        if(confirm("This will clear your entire map. Continue?")) {
+            localStorage.removeItem('mindmap_ultra_v1');
+            location.reload();
+        }
+    }
+
+    render();
+    viewport.scrollLeft = 2400 - (window.innerWidth / 2) + 70;
+    viewport.scrollTop = 2400 - (window.innerHeight / 2) + 20;
+</script>
+</body>
+</html>
