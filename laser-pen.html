@@ -3,472 +3,484 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced PDF Reader Tool</title>
-    <!-- Tailwind CSS CDN -->
+    <title>PDF Reader Pro & Laser Tool</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- PDF.js and PDF.worker CDN -->
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDF.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
-        // Configure PDF.js worker source
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
     <style>
-        /* Custom scrollbar for clean aesthetics */
+        /* Custom scrollbars */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: #0f172a;
+            background: #090d16;
         }
         ::-webkit-scrollbar-thumb {
-            background: #334155;
+            background: #1e293b;
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
+            background: #334155;
         }
-        
-        /* Custom Laser Pen Cursor when active */
+
+        /* Pen Pointer Cursor */
         .pen-cursor {
             cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z'></path></svg>") 0 24, crosshair !important;
         }
+
+        /* Hand / Grab Cursors */
+        .grab-cursor {
+            cursor: grab !important;
+        }
+        .grabbing-cursor {
+            cursor: grabbing !important;
+        }
     </style>
 </head>
-<body class="h-full bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden">
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden select-none">
 
-    <!-- Header Toolbar -->
-    <header class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-4 shadow-lg z-20 select-none shrink-0">
-        <!-- Left: Branding, Sidebar Toggle & File Loader -->
+    <!-- Top Toolbar Header -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-xl z-30 shrink-0">
+        
+        <!-- Left Section: Logo, Sidebar Toggle & File Opener -->
         <div class="flex items-center space-x-3">
-            <button id="sidebar-toggle" title="Toggle Sidebar" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition border border-slate-700">
-                <i class="fa-solid fa-bars text-sm"></i>
+            <button id="sidebar-toggle-btn" title="Toggle Sidebar (S)" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition border border-slate-700/60 active:scale-95 flex items-center justify-center">
+                <i data-lucide="panel-left-toggle" class="w-4 h-4"></i>
             </button>
 
-            <div class="flex items-center space-x-2">
-                <div class="bg-indigo-600 p-2 rounded-lg text-white shadow">
-                    <i class="fa-solid fa-file-pdf text-lg"></i>
+            <div class="flex items-center space-x-2.5">
+                <div class="bg-gradient-to-tr from-indigo-600 to-violet-500 p-2 rounded-xl text-white shadow-md shadow-indigo-500/20">
+                    <i data-lucide="file-text" class="w-5 h-5"></i>
                 </div>
-                <span class="font-bold text-lg tracking-wide bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent hidden sm:inline">PDF Reader Pro</span>
+                <span class="font-bold text-base tracking-wide bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent hidden sm:inline">PDF Pro</span>
             </div>
             
-            <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg text-sm font-medium transition shadow flex items-center space-x-2">
-                <i class="fa-solid fa-folder-open"></i>
-                <span>Open PDF</span>
-                <input type="file" id="file-upload" accept="application/pdf" class="hidden">
+            <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition shadow-lg shadow-indigo-600/20 flex items-center space-x-2 active:scale-95">
+                <i data-lucide="folder-open" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Open PDF</span>
+                <input type="file" id="file-input" accept="application/pdf" class="hidden">
             </label>
         </div>
 
-        <!-- Center: Pagination Controls -->
-        <div id="pagination-controls" class="flex items-center space-x-2 bg-slate-950/60 px-3 py-1 rounded-lg border border-slate-800">
-            <button id="prev-page" title="Previous Page" class="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition disabled:opacity-40 disabled:hover:bg-transparent">
-                <i class="fa-solid fa-chevron-left text-sm"></i>
+        <!-- Middle Section: Pagination Controls -->
+        <div class="flex items-center space-x-1.5 bg-slate-950/80 px-3 py-1 rounded-xl border border-slate-800">
+            <button id="prev-page-btn" title="Previous Page (Left Arrow)" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition disabled:opacity-30 disabled:hover:bg-transparent">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
             </button>
-            <div class="text-xs sm:text-sm font-medium flex items-center space-x-1">
+            <div class="text-xs sm:text-sm font-medium flex items-center space-x-1.5 text-slate-300">
                 <span>Page</span>
-                <input type="number" id="page-num" value="1" min="1" class="w-12 bg-slate-900 text-center border border-slate-700 rounded py-0.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                <span>of <span id="page-count">0</span></span>
+                <input type="number" id="page-num-input" value="1" min="1" class="w-11 bg-slate-900 text-center border border-slate-700 rounded-lg py-0.5 text-slate-100 focus:outline-none focus:border-indigo-500 text-xs sm:text-sm">
+                <span>of <span id="page-count-display" class="text-slate-400">0</span></span>
             </div>
-            <button id="next-page" title="Next Page" class="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition disabled:opacity-40 disabled:hover:bg-transparent">
-                <i class="fa-solid fa-chevron-right text-sm"></i>
+            <button id="next-page-btn" title="Next Page (Right Arrow)" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition disabled:opacity-30 disabled:hover:bg-transparent">
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
             </button>
         </div>
 
-        <!-- Right: Zoom, Fit, & Tool Controls -->
+        <!-- Right Section: Tools (Laser, Hand, Colors, Zoom, Fit) -->
         <div class="flex items-center space-x-2">
-            <!-- Zoom Group -->
-            <div class="flex items-center space-x-1 bg-slate-950/60 px-2 py-1 rounded-lg border border-slate-800">
-                <button id="zoom-out" title="Zoom Out" class="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition">
-                    <i class="fa-solid fa-magnifying-glass-minus text-sm"></i>
+            
+            <!-- Tool Modes (Laser Pencil & Hand Pan Tool) -->
+            <div class="flex items-center space-x-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                <button id="laser-tool-btn" title="Laser Pencil Tool (L) - Left Click to Draw" class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center space-x-1.5 bg-indigo-600/30 text-indigo-300 border border-indigo-500/50 shadow-xs">
+                    <i data-lucide="highlighter" class="w-3.5 h-3.5 text-rose-400"></i>
+                    <span class="hidden md:inline">Laser</span>
                 </button>
-                <span id="zoom-val" class="text-xs sm:text-sm font-medium w-12 text-center text-slate-300">100%</span>
-                <button id="zoom-in" title="Zoom In" class="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition">
-                    <i class="fa-solid fa-magnifying-glass-plus text-sm"></i>
-                </button>
-                <button id="zoom-reset" title="Reset Zoom" class="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition text-xs font-bold">
-                    <i class="fa-solid fa-rotate-right text-xs"></i>
+                <button id="hand-tool-btn" title="Hand Tool (H) - Pan in 4 directions" class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center space-x-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                    <i data-lucide="hand" class="w-3.5 h-3.5"></i>
+                    <span class="hidden md:inline">Hand</span>
                 </button>
             </div>
 
-            <!-- Fit Options -->
-            <div class="hidden md:flex items-center space-x-1 bg-slate-950/60 px-2 py-1 rounded-lg border border-slate-800">
-                <button id="fit-width" title="Fit to Width" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-800 rounded text-slate-300 hover:text-white transition">
+            <!-- Color Palette for Laser Pencil -->
+            <div id="color-palette" class="flex items-center space-x-1.5 bg-slate-950/80 px-2 py-1.5 rounded-xl border border-slate-800">
+                <button class="w-4 h-4 rounded-full bg-rose-500 ring-2 ring-white transition transform hover:scale-125 color-option" data-color="rgba(244, 63, 94, 0.95)" title="Neon Red"></button>
+                <button class="w-4 h-4 rounded-full bg-cyan-400 transition transform hover:scale-125 color-option" data-color="rgba(34, 211, 238, 0.95)" title="Neon Blue"></button>
+                <button class="w-4 h-4 rounded-full bg-emerald-400 transition transform hover:scale-125 color-option" data-color="rgba(52, 211, 153, 0.95)" title="Neon Green"></button>
+                <button class="w-4 h-4 rounded-full bg-amber-400 transition transform hover:scale-125 color-option" data-color="rgba(251, 191, 36, 0.95)" title="Bright Yellow"></button>
+                <button class="w-4 h-4 rounded-full bg-fuchsia-500 transition transform hover:scale-125 color-option" data-color="rgba(217, 70, 239, 0.95)" title="Neon Pink"></button>
+                <button class="w-4 h-4 rounded-full bg-orange-500 transition transform hover:scale-125 color-option" data-color="rgba(249, 115, 22, 0.95)" title="Vibrant Orange"></button>
+            </div>
+
+            <!-- Zoom Options -->
+            <div class="flex items-center space-x-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                <button id="zoom-out-btn" title="Zoom Out (-)" class="p-1 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition">
+                    <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                </button>
+                <span id="zoom-display" class="text-xs font-semibold w-12 text-center text-slate-300">100%</span>
+                <button id="zoom-in-btn" title="Zoom In (+)" class="p-1 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition">
+                    <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                </button>
+                <button id="zoom-reset-btn" title="Reset Zoom" class="p-1 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <!-- Page Fit Options -->
+            <div class="hidden lg:flex items-center space-x-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                <button id="fit-width-btn" title="Fit to Container Width" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition">
                     Fit Width
                 </button>
-                <button id="fit-screen" title="Fit to Screen" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-800 rounded text-slate-300 hover:text-white transition">
+                <button id="fit-screen-btn" title="Fit Entire Page to Screen" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition">
                     Fit Screen
                 </button>
             </div>
 
-            <!-- Annotation / Laser Pencil Tool Bar -->
-            <div class="flex items-center space-x-1 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800">
-                <button id="laser-toggle" title="Toggle Laser Pencil" class="px-2.5 py-1 rounded text-xs font-medium transition text-slate-300 hover:text-white flex items-center space-x-1.5 bg-slate-900 border border-slate-700">
-                    <i class="fa-solid fa-highlighter text-rose-400"></i>
-                    <span class="hidden sm:inline">Laser Pen</span>
-                </button>
-                
-                <!-- Color Picker Swatches -->
-                <div id="color-swatches" class="hidden items-center space-x-1.5 pl-1.5 border-l border-slate-800">
-                    <button class="w-4 h-4 rounded-full bg-rose-500 ring-2 ring-white/80 transition transform hover:scale-110 color-btn" data-color="rgba(244, 63, 94, 0.9)" title="Red Pen"></button>
-                    <button class="w-4 h-4 rounded-full bg-cyan-400 transition transform hover:scale-110 color-btn" data-color="rgba(34, 211, 238, 0.9)" title="Blue Pen"></button>
-                    <button class="w-4 h-4 rounded-full bg-emerald-400 transition transform hover:scale-110 color-btn" data-color="rgba(52, 211, 153, 0.9)" title="Green Pen"></button>
-                    <button class="w-4 h-4 rounded-full bg-amber-400 transition transform hover:scale-110 color-btn" data-color="rgba(251, 191, 36, 0.9)" title="Yellow Pen"></button>
-                    <button class="w-4 h-4 rounded-full bg-fuchsia-500 transition transform hover:scale-110 color-btn" data-color="rgba(217, 70, 239, 0.9)" title="Neon Pink Pen"></button>
-                </div>
-            </div>
         </div>
     </header>
 
-    <!-- Main Workspace -->
+    <!-- Main Workspace Container -->
     <div class="flex-1 flex overflow-hidden relative">
         
-        <!-- Sidebar / Thumbnail Container -->
-        <aside id="sidebar" class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-all duration-300 z-10">
-            <div class="p-3 border-b border-slate-800 font-semibold text-sm text-slate-300 flex items-center justify-between">
-                <span>Thumbnails</span>
-                <span id="thumb-count" class="text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-400">0 pages</span>
+        <!-- Collapsible Sidebar for Page Thumbnails -->
+        <aside id="thumbnail-sidebar" class="w-64 bg-slate-900/95 border-r border-slate-800/80 flex flex-col transition-all duration-300 ease-in-out z-20 shrink-0">
+            <div class="p-3 border-b border-slate-800/80 font-semibold text-xs text-slate-400 flex items-center justify-between uppercase tracking-wider">
+                <span>Page Thumbnails</span>
+                <span id="thumb-count-tag" class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-300">0 pages</span>
             </div>
-            <div id="thumbnails-container" class="flex-1 overflow-y-auto p-3 space-y-3">
-                <!-- Thumbnails injected dynamically -->
+            <div id="thumbnails-wrapper" class="flex-1 overflow-y-auto p-3 space-y-3">
+                <!-- Dynamic Thumbnail Canvases Rendered Here -->
             </div>
         </aside>
 
-        <!-- PDF Viewer Main Canvas Area -->
-        <main id="viewer-container" class="flex-1 bg-slate-950 overflow-auto relative flex flex-col items-center justify-start p-6 md:p-10">
+        <!-- Viewer Scrollable Area for PDF Display & Annotation -->
+        <main id="viewer-container" class="flex-1 bg-slate-950 overflow-auto relative flex flex-col items-center justify-start p-6 md:p-8 pen-cursor">
             
-            <!-- Initial Empty / Drag & Drop & Sample Loader State -->
-            <div id="drop-zone" class="my-auto max-w-lg w-full border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center p-8 bg-slate-900/40 backdrop-blur-sm transition hover:border-indigo-500 cursor-pointer z-20">
-                <div class="w-20 h-20 bg-indigo-600/10 text-indigo-400 rounded-full flex items-center justify-center mb-4 text-3xl shadow-inner">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
+            <!-- Empty State / Drag and Drop Prompt -->
+            <div id="welcome-drop-zone" class="my-auto max-w-md w-full border-2 border-dashed border-slate-800/80 rounded-3xl flex flex-col items-center justify-center text-center p-8 bg-slate-900/40 backdrop-blur-md transition hover:border-indigo-500/60 cursor-pointer shadow-2xl">
+                <div class="w-16 h-16 bg-indigo-600/10 text-indigo-400 rounded-2xl flex items-center justify-center mb-4 text-2xl border border-indigo-500/20">
+                    <i data-lucide="upload-cloud" class="w-8 h-8"></i>
                 </div>
-                <h2 class="text-xl font-bold text-slate-200 mb-2">Drag and drop your PDF here</h2>
-                <p class="text-slate-400 text-sm mb-6">Instantly view, navigate, zoom, and annotate with auto-fading multi-color laser ink.</p>
+                <h2 class="text-lg font-bold text-slate-100 mb-1">Open PDF Document</h2>
+                <p class="text-xs text-slate-400 mb-6 leading-relaxed">Drag & drop your PDF file here, or click below to explore with multi-color fading laser annotations and pan features.</p>
                 <div class="flex flex-wrap items-center justify-center gap-3">
-                    <label class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl shadow-lg transition cursor-pointer text-sm">
-                        Browse PDF File
+                    <label class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-xl text-xs shadow-lg shadow-indigo-600/20 transition cursor-pointer">
+                        Browse File
                         <input type="file" id="dropzone-file-input" accept="application/pdf" class="hidden">
                     </label>
-                    <button id="load-sample-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-5 py-2.5 rounded-xl border border-slate-700 transition text-sm">
+                    <button id="load-sample-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-4 py-2 rounded-xl text-xs border border-slate-700/80 transition">
                         Load Sample PDF
                     </button>
                 </div>
             </div>
 
-            <!-- Canvas Wrapper for PDF Rendering & Laser Overlay with safe margins for scrolling -->
-            <div id="canvas-wrapper" class="relative shadow-2xl rounded bg-white hidden my-auto mx-auto shrink-0">
-                <canvas id="pdf-canvas" class="block rounded shadow-md"></canvas>
-                <!-- Interactive Laser Drawing Canvas Overlay -->
-                <canvas id="laser-canvas" class="absolute inset-0 pointer-events-none rounded"></canvas>
+            <!-- PDF Page Wrapper with Overlay Canvas -->
+            <div id="pdf-wrapper" class="relative shadow-2xl rounded-lg bg-white hidden my-auto mx-auto shrink-0 border border-slate-800">
+                <!-- PDF Render Canvas -->
+                <canvas id="pdf-render-canvas" class="block rounded"></canvas>
+                <!-- Laser Drawing Canvas Layer -->
+                <canvas id="laser-draw-canvas" class="absolute inset-0 rounded"></canvas>
             </div>
 
         </main>
     </div>
 
-    <!-- Message Box Notification Modal -->
-    <div id="message-modal" class="fixed inset-0 bg-black/75 z-50 flex items-center justify-center hidden backdrop-blur-xs">
+    <!-- Toast / Dialog Message Modal -->
+    <div id="dialog-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden backdrop-blur-xs">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl text-center">
-            <div id="modal-icon" class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-4 text-xl">
-                <i class="fa-solid fa-circle-exclamation"></i>
+            <div id="modal-icon-wrap" class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="alert-circle" class="w-6 h-6"></i>
             </div>
-            <h3 id="modal-title" class="text-lg font-bold text-white mb-2">Notice</h3>
-            <p id="modal-message" class="text-sm text-slate-300 mb-6">An error occurred while loading the PDF document.</p>
-            <button id="modal-close" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-medium transition shadow">
-                OK
+            <h3 id="modal-title-text" class="text-base font-bold text-slate-100 mb-1">Notice</h3>
+            <p id="modal-body-text" class="text-xs text-slate-400 mb-5 leading-relaxed">System message content.</p>
+            <button id="modal-close-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-xl text-xs font-semibold transition shadow-md">
+                Acknowledge
             </button>
         </div>
     </div>
 
-    <!-- Application Logic -->
+    <!-- Application Controller Logic -->
     <script>
-        let pdfDoc = null,
-            pageNum = 1,
-            pageRendering = false,
-            pageNumPending = null,
-            scale = 1.25,
-            canvas = document.getElementById('pdf-canvas'),
-            ctx = canvas.getContext('2d'),
-            laserActive = false,
-            laserColor = 'rgba(244, 63, 94, 0.9)'; // Default red laser pen
+        // Initialize Lucide Icons
+        lucide.createIcons();
 
-        // Laser pencil stroke state structures
-        let laserCanvas = document.getElementById('laser-canvas');
-        let laserCtx = laserCanvas.getContext('2d');
-        let strokes = []; 
-        let isDrawing = false;
-        let animationFrameId = null;
+        // PDF.js Core Variables
+        let pdfDoc = null;
+        let currentPageNum = 1;
+        let isRenderingPage = false;
+        let pendingPageNum = null;
+        let currentScale = 1.25;
 
-        const fileUploadInput = document.getElementById('file-upload');
-        const dropzoneFileInput = document.getElementById('dropzone-file-input');
-        const dropZone = document.getElementById('drop-zone');
-        const canvasWrapper = document.getElementById('canvas-wrapper');
-        const pageNumInput = document.getElementById('page-num');
-        const pageCountSpan = document.getElementById('page-count');
-        const prevPageBtn = document.getElementById('prev-page');
-        const nextPageBtn = document.getElementById('next-page');
-        const zoomInBtn = document.getElementById('zoom-in');
-        const zoomOutBtn = document.getElementById('zoom-out');
-        const zoomResetBtn = document.getElementById('zoom-reset');
-        const zoomValSpan = document.getElementById('zoom-val');
-        const fitWidthBtn = document.getElementById('fit-width');
-        const fitScreenBtn = document.getElementById('fit-screen');
-        const laserToggleBtn = document.getElementById('laser-toggle');
-        const colorSwatchesContainer = document.getElementById('color-swatches');
+        // Tool Modes: 'laser' or 'hand'
+        let activeTool = 'laser'; 
+        let laserPenColor = 'rgba(244, 63, 94, 0.95)';
+
+        // Laser Strokes state for fading animation
+        let strokePoints = [];
+        let isDrawingLaser = false;
+
+        // Hand / Pan Navigation state
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+        let scrollStartX = 0;
+        let scrollStartY = 0;
+
+        // DOM Element Cache
         const viewerContainer = document.getElementById('viewer-container');
-        const thumbnailsContainer = document.getElementById('thumbnails-container');
-        const thumbCountSpan = document.getElementById('thumb-count');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+        const pdfWrapper = document.getElementById('pdf-wrapper');
+        const pdfCanvas = document.getElementById('pdf-render-canvas');
+        const pdfCtx = pdfCanvas.getContext('2d');
+        const laserCanvas = document.getElementById('laser-draw-canvas');
+        const laserCtx = laserCanvas.getContext('2d');
+
+        const thumbnailSidebar = document.getElementById('thumbnail-sidebar');
+        const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+        const thumbnailsWrapper = document.getElementById('thumbnails-wrapper');
+        const thumbCountTag = document.getElementById('thumb-count-tag');
+
+        const welcomeDropZone = document.getElementById('welcome-drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const dropzoneFileInput = document.getElementById('dropzone-file-input');
         const loadSampleBtn = document.getElementById('load-sample-btn');
 
-        // Toggle Sidebar visibility
-        sidebarToggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('hidden');
-        });
+        const pageNumInput = document.getElementById('page-num-input');
+        const pageCountDisplay = document.getElementById('page-count-display');
+        const prevPageBtn = document.getElementById('prev-page-btn');
+        const nextPageBtn = document.getElementById('next-page-btn');
 
-        // Custom Message Box Function
-        function showMessage(title, message, isError = true) {
-            document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-message').textContent = message;
-            const iconDiv = document.getElementById('modal-icon');
+        const zoomInBtn = document.getElementById('zoom-in-btn');
+        const zoomOutBtn = document.getElementById('zoom-out-btn');
+        const zoomResetBtn = document.getElementById('zoom-reset-btn');
+        const zoomDisplay = document.getElementById('zoom-display');
+        const fitWidthBtn = document.getElementById('fit-width-btn');
+        const fitScreenBtn = document.getElementById('fit-screen-btn');
+
+        const laserToolBtn = document.getElementById('laser-tool-btn');
+        const handToolBtn = document.getElementById('hand-tool-btn');
+        const colorPalette = document.getElementById('color-palette');
+
+        // Modal Handler
+        function displayModal(title, message, isError = true) {
+            document.getElementById('modal-title-text').textContent = title;
+            document.getElementById('modal-body-text').textContent = message;
+            const iconWrap = document.getElementById('modal-icon-wrap');
             if (isError) {
-                iconDiv.className = "w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-4 text-xl";
-                iconDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>';
+                iconWrap.className = "w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-4";
+                iconWrap.innerHTML = '<i data-lucide="alert-circle" class="w-6 h-6"></i>';
             } else {
-                iconDiv.className = "w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-4 text-xl";
-                iconDiv.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+                iconWrap.className = "w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-4";
+                iconWrap.innerHTML = '<i data-lucide="check-circle" class="w-6 h-6"></i>';
             }
-            document.getElementById('message-modal').classList.remove('hidden');
+            lucide.createIcons();
+            document.getElementById('dialog-modal').classList.remove('hidden');
         }
 
-        document.getElementById('modal-close').addEventListener('click', () => {
-            document.getElementById('message-modal').classList.add('hidden');
+        document.getElementById('modal-close-btn').addEventListener('click', () => {
+            document.getElementById('dialog-modal').classList.add('hidden');
         });
 
-        // Load PDF from ArrayBuffer or File data
-        function loadPDFData(data) {
-            const loadingTask = pdfjsLib.getDocument({ data: data });
-            loadingTask.promise.then(function(pdfDoc_) {
-                pdfDoc = pdfDoc_;
-                pageCountSpan.textContent = pdfDoc.numPages;
-                thumbCountSpan.textContent = `${pdfDoc.numPages} pages`;
-                pageNum = 1;
-                
-                dropZone.classList.add('hidden');
-                canvasWrapper.classList.remove('hidden');
+        // Sidebar Collapse/Expand Toggle
+        sidebarToggleBtn.addEventListener('click', () => {
+            thumbnailSidebar.classList.toggle('hidden');
+        });
 
-                renderPage(pageNum);
-                buildThumbnails();
-            }).catch(function(error) {
-                console.error('Error loading PDF:', error);
-                showMessage('Invalid PDF', 'Could not parse the selected file. Please ensure it is a valid PDF document.');
+        // Load PDF Document Data
+        function renderPdfFromBuffer(bufferData) {
+            pdfjsLib.getDocument({ data: bufferData }).promise.then((doc) => {
+                pdfDoc = doc;
+                pageCountDisplay.textContent = pdfDoc.numPages;
+                thumbCountTag.textContent = `${pdfDoc.numPages} pages`;
+                currentPageNum = 1;
+
+                welcomeDropZone.classList.add('hidden');
+                pdfWrapper.classList.remove('hidden');
+
+                renderCurrentPage();
+                generateThumbnails();
+            }).catch((err) => {
+                console.error("PDF load error:", err);
+                displayModal("Error Reading PDF", "Unable to open file. Please make sure it is a valid PDF.");
             });
         }
 
-        // Load Built-in Sample PDF (Mozilla PDF.js sample)
+        // Sample PDF Loader
         loadSampleBtn.addEventListener('click', () => {
             const sampleUrl = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
             fetch(sampleUrl)
                 .then(res => res.arrayBuffer())
-                .then(buffer => loadPDFData(new Uint8Array(buffer)))
+                .then(buffer => renderPdfFromBuffer(new Uint8Array(buffer)))
                 .catch(err => {
-                    console.error('Sample load error:', err);
-                    showMessage('Sample Error', 'Could not load the built-in sample PDF. Please upload your own.');
+                    displayModal("Sample Load Failed", "Could not fetch sample PDF online. Please choose a local file.");
                 });
         });
 
-        // Handle File Selection
-        function handleFile(file) {
+        // File Selection Handlers
+        function processFile(file) {
             if (file && file.type === 'application/pdf') {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    loadPDFData(new Uint8Array(e.target.result));
+                    renderPdfFromBuffer(new Uint8Array(e.target.result));
                 };
                 reader.readAsArrayBuffer(file);
             } else {
-                showMessage('Unsupported File', 'Please upload a valid PDF file.');
+                displayModal("Invalid File Type", "Please select a document in PDF format.");
             }
         }
 
-        fileUploadInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) handleFile(e.target.files[0]);
-        });
+        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) processFile(e.target.files[0]); });
+        dropzoneFileInput.addEventListener('change', (e) => { if (e.target.files[0]) processFile(e.target.files[0]); });
 
-        dropzoneFileInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) handleFile(e.target.files[0]);
-        });
-
-        // Drag and Drop listeners
-        dropZone.addEventListener('dragover', (e) => {
+        // Drag and Drop
+        welcomeDropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            dropZone.classList.add('border-indigo-500', 'bg-slate-900/80');
+            welcomeDropZone.classList.add('border-indigo-500', 'bg-slate-900/80');
         });
-
-        dropZone.addEventListener('dragleave', (e) => {
+        welcomeDropZone.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('border-indigo-500', 'bg-slate-900/80');
+            welcomeDropZone.classList.remove('border-indigo-500', 'bg-slate-900/80');
         });
-
-        dropZone.addEventListener('drop', (e) => {
+        welcomeDropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('border-indigo-500', 'bg-slate-900/80');
-            if (e.dataTransfer.files[0]) {
-                handleFile(e.dataTransfer.files[0]);
-            }
+            welcomeDropZone.classList.remove('border-indigo-500', 'bg-slate-900/80');
+            if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
         });
 
-        // Render Page Function
-        function renderPage(num) {
-            pageRendering = true;
-            pdfDoc.getPage(num).then(function(page) {
-                const viewport = page.getViewport({ scale: scale });
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+        // Main Canvas Page Renderer
+        function renderCurrentPage() {
+            isRenderingPage = true;
+            pdfDoc.getPage(currentPageNum).then((page) => {
+                const viewport = page.getViewport({ scale: currentScale });
                 
-                // Match overlay laser canvas dimensions
+                pdfCanvas.height = viewport.height;
+                pdfCanvas.width = viewport.width;
+
                 laserCanvas.height = viewport.height;
                 laserCanvas.width = viewport.width;
 
                 const renderContext = {
-                    canvasContext: ctx,
+                    canvasContext: pdfCtx,
                     viewport: viewport
                 };
 
                 const renderTask = page.render(renderContext);
-                renderTask.promise.then(function() {
-                    pageRendering = false;
-                    if (pageNumPending !== null) {
-                        renderPage(pageNumPending);
-                        pageNumPending = null;
+                renderTask.promise.then(() => {
+                    isRenderingPage = false;
+                    if (pendingPageNum !== null) {
+                        renderCurrentPage();
+                        pendingPageNum = null;
                     }
                 });
             });
 
-            pageNumInput.value = num;
-            updatePaginationButtons();
-            updateZoomDisplay();
-            highlightActiveThumbnail();
-            strokes = []; // Clear annotations on page change
+            pageNumInput.value = currentPageNum;
+            prevPageBtn.disabled = currentPageNum <= 1;
+            nextPageBtn.disabled = currentPageNum >= pdfDoc.numPages;
+            zoomDisplay.textContent = `${Math.round(currentScale * 100)}%`;
+            
+            highlightThumbnail(currentPageNum);
+            strokePoints = []; // Clear current laser strokes on page turn
         }
 
-        function queueRenderPage(num) {
-            if (pageRendering) {
-                pageNumPending = num;
+        function queuePageRender(num) {
+            if (isRenderingPage) {
+                pendingPageNum = num;
             } else {
-                renderPage(num);
+                currentPageNum = num;
+                renderCurrentPage();
             }
         }
 
-        function updatePaginationButtons() {
-            prevPageBtn.disabled = pageNum <= 1;
-            nextPageBtn.disabled = pageNum >= pdfDoc.numPages;
-        }
-
-        function updateZoomDisplay() {
-            zoomValSpan.textContent = `${Math.round(scale * 100)}%`;
-        }
-
-        // Pagination Event Listeners
+        // Pagination Events
         prevPageBtn.addEventListener('click', () => {
-            if (pageNum <= 1) return;
-            pageNum--;
-            queueRenderPage(pageNum);
+            if (currentPageNum > 1) queuePageRender(currentPageNum - 1);
         });
-
         nextPageBtn.addEventListener('click', () => {
-            if (pageNum >= pdfDoc.numPages) return;
-            pageNum++;
-            queueRenderPage(pageNum);
+            if (currentPageNum < pdfDoc.numPages) queuePageRender(currentPageNum + 1);
         });
-
         pageNumInput.addEventListener('change', (e) => {
-            let num = parseInt(e.target.value);
-            if (num >= 1 && num <= pdfDoc.numPages) {
-                pageNum = num;
-                queueRenderPage(pageNum);
+            let val = parseInt(e.target.value);
+            if (val >= 1 && val <= pdfDoc.numPages) {
+                queuePageRender(val);
             } else {
-                pageNumInput.value = pageNum;
+                pageNumInput.value = currentPageNum;
             }
         });
 
-        // Zoom Features
+        // Zoom Events
         zoomInBtn.addEventListener('click', () => {
-            if (scale < 4.0) {
-                scale += 0.25;
-                queueRenderPage(pageNum);
+            if (currentScale < 4.0) {
+                currentScale += 0.25;
+                renderCurrentPage();
             }
         });
-
         zoomOutBtn.addEventListener('click', () => {
-            if (scale > 0.5) {
-                scale -= 0.25;
-                queueRenderPage(pageNum);
+            if (currentScale > 0.5) {
+                currentScale -= 0.25;
+                renderCurrentPage();
             }
         });
-
         zoomResetBtn.addEventListener('click', () => {
-            scale = 1.25;
-            queueRenderPage(pageNum);
+            currentScale = 1.25;
+            renderCurrentPage();
         });
 
-        // Fit to Width & Fit to Screen Features
+        // Fit Width & Screen
         fitWidthBtn.addEventListener('click', () => {
             if (!pdfDoc) return;
-            pdfDoc.getPage(pageNum).then(function(page) {
-                const unscaledViewport = page.getViewport({ scale: 1.0 });
-                const containerWidth = viewerContainer.clientWidth - 48;
-                scale = containerWidth / unscaledViewport.width;
-                queueRenderPage(pageNum);
+            pdfDoc.getPage(currentPageNum).then((page) => {
+                const unscaled = page.getViewport({ scale: 1.0 });
+                const availableWidth = viewerContainer.clientWidth - 64;
+                currentScale = availableWidth / unscaled.width;
+                renderCurrentPage();
             });
         });
 
         fitScreenBtn.addEventListener('click', () => {
             if (!pdfDoc) return;
-            pdfDoc.getPage(pageNum).then(function(page) {
-                const unscaledViewport = page.getViewport({ scale: 1.0 });
-                const containerWidth = viewerContainer.clientWidth - 48;
-                const containerHeight = viewerContainer.clientHeight - 48;
-                const scaleWidth = containerWidth / unscaledViewport.width;
-                const scaleHeight = containerHeight / unscaledViewport.height;
-                scale = Math.min(scaleWidth, scaleHeight);
-                queueRenderPage(pageNum);
+            pdfDoc.getPage(currentPageNum).then((page) => {
+                const unscaled = page.getViewport({ scale: 1.0 });
+                const availableWidth = viewerContainer.clientWidth - 64;
+                const availableHeight = viewerContainer.clientHeight - 64;
+                const scaleW = availableWidth / unscaled.width;
+                const scaleH = availableHeight / unscaled.height;
+                currentScale = Math.min(scaleW, scaleH);
+                renderCurrentPage();
             });
         });
 
-        // Laser Pencil Tool Toggle & Color Customization
-        laserToggleBtn.addEventListener('click', () => {
-            laserActive = !laserActive;
-            if (laserActive) {
-                laserToggleBtn.classList.add('bg-rose-600/20', 'border-rose-500', 'text-rose-300', 'shadow-md');
-                laserToggleBtn.classList.remove('bg-slate-900', 'border-slate-700', 'text-slate-300');
-                colorSwatchesContainer.classList.remove('hidden');
-                colorSwatchesContainer.classList.add('flex');
-                laserCanvas.style.pointerEvents = 'auto';
-                laserCanvas.classList.add('pen-cursor');
+        // Tool Mode Switching (Laser vs Hand)
+        function setToolMode(mode) {
+            activeTool = mode;
+            if (mode === 'laser') {
+                laserToolBtn.className = "px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center space-x-1.5 bg-indigo-600/30 text-indigo-300 border border-indigo-500/50 shadow-xs";
+                handToolBtn.className = "px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center space-x-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800";
+                colorPalette.classList.remove('hidden');
+                colorPalette.classList.add('flex');
+                viewerContainer.classList.add('pen-cursor');
+                viewerContainer.classList.remove('grab-cursor', 'grabbing-cursor');
             } else {
-                laserToggleBtn.classList.remove('bg-rose-600/20', 'border-rose-500', 'text-rose-300', 'shadow-md');
-                laserToggleBtn.classList.add('bg-slate-900', 'border-slate-700', 'text-slate-300');
-                colorSwatchesContainer.classList.add('hidden');
-                colorSwatchesContainer.classList.remove('flex');
-                laserCanvas.style.pointerEvents = 'none';
-                laserCanvas.classList.remove('pen-cursor');
-                isDrawing = false;
+                handToolBtn.className = "px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center space-x-1.5 bg-indigo-600/30 text-indigo-300 border border-indigo-500/50 shadow-xs";
+                laserToolBtn.className = "px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center space-x-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800";
+                colorPalette.classList.add('hidden');
+                colorPalette.classList.remove('flex');
+                viewerContainer.classList.remove('pen-cursor');
+                viewerContainer.classList.add('grab-cursor');
             }
-        });
+        }
 
-        // Color selection buttons
-        document.querySelectorAll('.color-btn').forEach(btn => {
+        laserToolBtn.addEventListener('click', () => setToolMode('laser'));
+        handToolBtn.addEventListener('click', () => setToolMode('hand'));
+
+        // Color selection
+        document.querySelectorAll('.color-option').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                laserColor = btn.getAttribute('data-color');
-                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-4', 'ring-white'));
-                btn.classList.add('ring-4', 'ring-white');
+                laserPenColor = btn.getAttribute('data-color');
+                document.querySelectorAll('.color-option').forEach(b => b.classList.remove('ring-2', 'ring-white'));
+                btn.classList.add('ring-2', 'ring-white');
             });
         });
 
-        // Laser Drawing and Fading Animation Loop
-        function getCanvasCoordinates(e) {
+        // Get relative coordinates on the drawing canvas
+        function getCanvasCoords(e) {
             const rect = laserCanvas.getBoundingClientRect();
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
@@ -478,137 +490,217 @@
             };
         }
 
-        laserCanvas.addEventListener('mousedown', (e) => {
-            if (!laserActive) return;
-            isDrawing = true;
-            const pos = getCanvasCoordinates(e);
-            strokes.push({
-                x: pos.x,
-                y: pos.y,
-                time: Date.now(),
-                color: laserColor,
-                isStart: true
-            });
-        });
-
-        laserCanvas.addEventListener('mousemove', (e) => {
-            if (!laserActive || !isDrawing) return;
-            const pos = getCanvasCoordinates(e);
-            strokes.push({
-                x: pos.x,
-                y: pos.y,
-                time: Date.now(),
-                color: laserColor,
-                isStart: false
-            });
-        });
-
-        window.addEventListener('mouseup', () => {
-            isDrawing = false;
-        });
-
-        // Touch support for tablets & mobiles
-        laserCanvas.addEventListener('touchstart', (e) => {
-            if (!laserActive) return;
-            isDrawing = true;
-            const pos = getCanvasCoordinates(e);
-            strokes.push({
-                x: pos.x,
-                y: pos.y,
-                time: Date.now(),
-                color: laserColor,
-                isStart: true
-            });
+        // Prevent standard Context Menu on right click over viewer container
+        viewerContainer.addEventListener('contextmenu', (e) => {
             e.preventDefault();
         });
 
-        laserCanvas.addEventListener('touchmove', (e) => {
-            if (!laserActive || !isDrawing) return;
-            const pos = getCanvasCoordinates(e);
-            strokes.push({
-                x: pos.x,
-                y: pos.y,
-                time: Date.now(),
-                color: laserColor,
-                isStart: false
-            });
-            e.preventDefault();
+        // Unified Mouse & Pointer Events for Left-Click Laser Pen & Right-Click/Hand Pan
+        viewerContainer.addEventListener('mousedown', (e) => {
+            if (!pdfDoc) return;
+
+            // RIGHT CLICK or HAND TOOL (Mode = Hand or Button = 2) -> Trigger 4-Directional Pan
+            if (e.button === 2 || activeTool === 'hand') {
+                isPanning = true;
+                panStartX = e.clientX;
+                panStartY = e.clientY;
+                scrollStartX = viewerContainer.scrollLeft;
+                scrollStartY = viewerContainer.scrollTop;
+                viewerContainer.classList.add('grabbing-cursor');
+                viewerContainer.classList.remove('grab-cursor', 'pen-cursor');
+                return;
+            }
+
+            // LEFT CLICK with LASER TOOL -> Draw Laser Line
+            if (e.button === 0 && activeTool === 'laser') {
+                isDrawingLaser = true;
+                const coords = getCanvasCoords(e);
+                strokePoints.push({
+                    x: coords.x,
+                    y: coords.y,
+                    timestamp: Date.now(),
+                    color: laserPenColor,
+                    isNewStroke: true
+                });
+            }
         });
+
+        window.addEventListener('mousemove', (e) => {
+            // Handle Panning
+            if (isPanning) {
+                const dx = e.clientX - panStartX;
+                const dy = e.clientY - panStartY;
+                viewerContainer.scrollLeft = scrollStartX - dx;
+                viewerContainer.scrollTop = scrollStartY - dy;
+                return;
+            }
+
+            // Handle Laser Drawing
+            if (isDrawingLaser && activeTool === 'laser') {
+                const coords = getCanvasCoords(e);
+                strokePoints.push({
+                    x: coords.x,
+                    y: coords.y,
+                    timestamp: Date.now(),
+                    color: laserPenColor,
+                    isNewStroke: false
+                });
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (isPanning) {
+                isPanning = false;
+                viewerContainer.classList.remove('grabbing-cursor');
+                if (activeTool === 'hand') {
+                    viewerContainer.classList.add('grab-cursor');
+                } else if (activeTool === 'laser') {
+                    viewerContainer.classList.add('pen-cursor');
+                }
+            }
+            if (isDrawingLaser) {
+                isDrawingLaser = false;
+            }
+        });
+
+        // Touch support for Pan and Laser Pen
+        viewerContainer.addEventListener('touchstart', (e) => {
+            if (!pdfDoc) return;
+            if (activeTool === 'hand' || e.touches.length > 1) {
+                isPanning = true;
+                panStartX = e.touches[0].clientX;
+                panStartY = e.touches[0].clientY;
+                scrollStartX = viewerContainer.scrollLeft;
+                scrollStartY = viewerContainer.scrollTop;
+            } else if (activeTool === 'laser') {
+                isDrawingLaser = true;
+                const coords = getCanvasCoords(e);
+                strokePoints.push({
+                    x: coords.x,
+                    y: coords.y,
+                    timestamp: Date.now(),
+                    color: laserPenColor,
+                    isNewStroke: true
+                });
+            }
+        }, { passive: false });
+
+        viewerContainer.addEventListener('touchmove', (e) => {
+            if (isPanning) {
+                const dx = e.touches[0].clientX - panStartX;
+                const dy = e.touches[0].clientY - panStartY;
+                viewerContainer.scrollLeft = scrollStartX - dx;
+                viewerContainer.scrollTop = scrollStartY - dy;
+                e.preventDefault();
+            } else if (isDrawingLaser && activeTool === 'laser') {
+                const coords = getCanvasCoords(e);
+                strokePoints.push({
+                    x: coords.x,
+                    y: coords.y,
+                    timestamp: Date.now(),
+                    color: laserPenColor,
+                    isNewStroke: false
+                });
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         window.addEventListener('touchend', () => {
-            isDrawing = false;
+            isPanning = false;
+            isDrawingLaser = false;
         });
 
-        // Animation render loop handling auto fade-out over 2 seconds
-        function animateLaserStrokes() {
+        // Animation Frame for Auto-Fading Laser Lines (Apple/Samsung Note Effect)
+        function renderLaserFadingStrokes() {
             laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
             const now = Date.now();
-            const fadeDuration = 2000; // Lines vanish after 2 seconds
+            const lifespan = 1800; // Lines fade out over 1.8 seconds
 
-            strokes = strokes.filter(s => (now - s.time) < fadeDuration);
+            // Retain active un-expired points
+            strokePoints = strokePoints.filter(p => (now - p.timestamp) < lifespan);
 
-            if (strokes.length > 0) {
+            if (strokePoints.length > 1) {
                 laserCtx.lineCap = 'round';
                 laserCtx.lineJoin = 'round';
-                laserCtx.lineWidth = 4;
+                laserCtx.lineWidth = 5;
 
-                for (let i = 0; i < strokes.length; i++) {
-                    const stroke = strokes[i];
-                    const age = now - stroke.time;
-                    const opacity = Math.max(0, 1 - (age / fadeDuration));
+                for (let i = 1; i < strokePoints.length; i++) {
+                    const pt = strokePoints[i];
+                    const prevPt = strokePoints[i - 1];
 
-                    if (stroke.isStart || i === 0 || strokes[i-1].isStart) {
-                        continue;
-                    }
+                    if (pt.isNewStroke) continue;
 
-                    laserCtx.strokeStyle = stroke.color.replace(/[\d\.]+\)$/g, `${opacity * 0.9})`);
-                    laserCtx.shadowColor = stroke.color.replace(/[\d\.]+\)$/g, `${opacity})`);
-                    laserCtx.shadowBlur = 12; // Glowing pen ink trail
+                    const age = now - pt.timestamp;
+                    const opacity = Math.max(0, 1 - (age / lifespan));
+
+                    laserCtx.strokeStyle = pt.color.replace(/[\d\.]+\)$/g, `${opacity * 0.95})`);
+                    laserCtx.shadowColor = pt.color.replace(/[\d\.]+\)$/g, `${opacity})`);
+                    laserCtx.shadowBlur = 10; // Glowing neon aura effect
 
                     laserCtx.beginPath();
-                    laserCtx.moveTo(strokes[i-1].x, strokes[i-1].y);
-                    laserCtx.lineTo(stroke.x, stroke.y);
+                    laserCtx.moveTo(prevPt.x, prevPt.y);
+                    laserCtx.lineTo(pt.x, pt.y);
                     laserCtx.stroke();
                 }
             }
 
-            animationFrameId = requestAnimationFrame(animateLaserStrokes);
+            requestAnimationFrame(renderLaserFadingStrokes);
         }
 
-        animateLaserStrokes();
+        requestAnimationFrame(renderLaserFadingStrokes);
 
-        // Generate Sidebar Thumbnails
-        function buildThumbnails() {
-            thumbnailsContainer.innerHTML = '';
+        // Sidebar Thumbnail Generator
+        function generateThumbnails() {
+            thumbnailsWrapper.innerHTML = '';
             for (let i = 1; i <= pdfDoc.numPages; i++) {
-                const thumbItem = document.createElement('div');
-                thumbItem.className = `group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-transparent hover:bg-slate-800 ${i === pageNum ? 'bg-indigo-600/20 border-indigo-500/50 text-white' : 'text-slate-400'}`;
-                thumbItem.dataset.page = i;
-                
-                thumbItem.innerHTML = `
-                    <div class="w-8 h-10 bg-slate-950 rounded border border-slate-800 flex items-center justify-center text-xs font-semibold shrink-0 group-hover:border-indigo-400 transition">${i}</div>
+                const item = document.createElement('div');
+                item.className = `group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-transparent hover:bg-slate-800 ${i === currentPageNum ? 'bg-indigo-600/20 border-indigo-500/50 text-white' : 'text-slate-400'}`;
+                item.dataset.page = i;
+
+                item.innerHTML = `
+                    <div class="w-8 h-10 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center text-xs font-semibold shrink-0 group-hover:border-indigo-400 transition">${i}</div>
                     <div class="text-xs font-medium truncate">Page ${i}</div>
                 `;
 
-                thumbItem.addEventListener('click', () => {
-                    pageNum = i;
-                    queueRenderPage(pageNum);
+                item.addEventListener('click', () => {
+                    queuePageRender(i);
                 });
 
-                thumbnailsContainer.appendChild(thumbItem);
+                thumbnailsWrapper.appendChild(item);
             }
         }
 
-        function highlightActiveThumbnail() {
-            const thumbs = thumbnailsContainer.children;
-            for (let t of thumbs) {
-                if (parseInt(t.dataset.page) === pageNum) {
-                    t.className = "group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-indigo-500/50 bg-indigo-600/20 text-white shadow-xs";
+        function highlightThumbnail(page) {
+            const children = thumbnailsWrapper.children;
+            for (let child of children) {
+                if (parseInt(child.dataset.page) === page) {
+                    child.className = "group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-indigo-500/50 bg-indigo-600/20 text-white shadow-xs";
                 } else {
-                    t.className = "group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-transparent hover:bg-slate-800 text-slate-400";
+                    child.className = "group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-transparent hover:bg-slate-800 text-slate-400";
                 }
             }
         }
+
+        // Global Keyboard Shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'INPUT') return;
+
+            if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+                if (pdfDoc && currentPageNum < pdfDoc.numPages) queuePageRender(currentPageNum + 1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                if (pdfDoc && currentPageNum > 1) queuePageRender(currentPageNum - 1);
+            } else if (e.key === '+' || e.key === '=') {
+                if (currentScale < 4.0) { currentScale += 0.25; renderCurrentPage(); }
+            } else if (e.key === '-') {
+                if (currentScale > 0.5) { currentScale -= 0.25; renderCurrentPage(); }
+            } else if (e.key.toLowerCase() === 'l') {
+                setToolMode('laser');
+            } else if (e.key.toLowerCase() === 'h') {
+                setToolMode('hand');
+            } else if (e.key.toLowerCase() === 's') {
+                thumbnailSidebar.classList.toggle('hidden');
+            }
+        });
     </script>
 </body>
 </html>
