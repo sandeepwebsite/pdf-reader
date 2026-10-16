@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced PDF Reader Tool</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF.js and PDF.worker CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configure PDF.js worker source
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <style>
+        /* Custom scrollbar for clean aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Laser Pointer Glow Animation & Cursor */
+        .laser-active {
+            cursor: none !important;
+        }
+        
+        /* Custom Laser Pen Cursor when active */
+        .pen-cursor {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z'></path></svg>") 0 24, crosshair !important;
+        }
+
+        #laser-dot {
+            position: fixed;
+            width: 16px;
+            height: 16px;
+            background: radial-gradient(circle, rgba(255,0,0,1) 0%, rgba(255,0,0,0.8) 50%, rgba(255,0,0,0) 80%);
+            border-radius: 50%;
+            box-shadow: 0 0 12px 4px rgba(255, 0, 0, 0.8), 0 0 25px 8px rgba(255, 69, 0, 0.6);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            display: none;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden">
+
+    <!-- Laser Dot Element -->
+    <div id="laser-dot"></div>
+
+    <!-- Header Toolbar -->
+    <header class="bg-slate-800 border-b border-slate-700 px-4 py-2.5 flex flex-wrap items-center justify-between gap-4 shadow-md z-20 select-none">
+        <!-- Left: Branding & File Loader -->
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2">
+                <div class="bg-indigo-600 p-2 rounded-lg text-white shadow">
+                    <i class="fa-solid fa-file-pdf text-lg"></i>
+                </div>
+                <span class="font-bold text-lg tracking-wide bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent hidden sm:inline">PDF Reader Pro</span>
+            </div>
+            
+            <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg text-sm font-medium transition shadow flex items-center space-x-2">
+                <i class="fa-solid fa-folder-open"></i>
+                <span>Open PDF</span>
+                <input type="file" id="file-upload" accept="application/pdf" class="hidden">
+            </label>
+        </div>
+
+        <!-- Center: Pagination Controls -->
+        <div id="pagination-controls" class="flex items-center space-x-2 bg-slate-900/60 px-3 py-1 rounded-lg border border-slate-700">
+            <button id="prev-page" title="Previous Page" class="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition disabled:opacity-40 disabled:hover:bg-transparent">
+                <i class="fa-solid fa-chevron-left text-sm"></i>
+            </button>
+            <div class="text-xs sm:text-sm font-medium flex items-center space-x-1">
+                <span>Page</span>
+                <input type="number" id="page-num" value="1" min="1" class="w-12 bg-slate-800 text-center border border-slate-600 rounded py-0.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                <span>of <span id="page-count">0</span></span>
+            </div>
+            <button id="next-page" title="Next Page" class="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition disabled:opacity-40 disabled:hover:bg-transparent">
+                <i class="fa-solid fa-chevron-right text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Right: Zoom, Fit, & Tool Controls -->
+        <div class="flex items-center space-x-2">
+            <!-- Zoom Group -->
+            <div class="flex items-center space-x-1 bg-slate-900/60 px-2 py-1 rounded-lg border border-slate-700">
+                <button id="zoom-out" title="Zoom Out" class="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition">
+                    <i class="fa-solid fa-magnifying-glass-minus text-sm"></i>
+                </button>
+                <span id="zoom-val" class="text-xs sm:text-sm font-medium w-12 text-center text-slate-300">100%</span>
+                <button id="zoom-in" title="Zoom In" class="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition">
+                    <i class="fa-solid fa-magnifying-glass-plus text-sm"></i>
+                </button>
+                <button id="zoom-reset" title="Reset Zoom" class="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition text-xs font-bold">
+                    <i class="fa-solid fa-rotate-right text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Fit Options -->
+            <div class="hidden md:flex items-center space-x-1 bg-slate-900/60 px-2 py-1 rounded-lg border border-slate-700">
+                <button id="fit-width" title="Fit to Width" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-700 rounded text-slate-300 hover:text-white transition">
+                    Fit Width
+                </button>
+                <button id="fit-screen" title="Fit to Screen" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-700 rounded text-slate-300 hover:text-white transition">
+                    Fit Screen
+                </button>
+            </div>
+
+            <!-- Annotation / Laser Pencil Tool Bar -->
+            <div class="flex items-center space-x-1 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-700">
+                <button id="laser-toggle" title="Toggle Laser Pencil" class="px-2.5 py-1 rounded text-xs font-medium transition text-slate-300 hover:text-white flex items-center space-x-1.5 bg-slate-800 border border-slate-600">
+                    <i class="fa-solid fa-highlighter text-rose-400"></i>
+                    <span class="hidden sm:inline">Laser Pencil</span>
+                </button>
+                
+                <!-- Color Picker Dropdown/Swatches -->
+                <div id="color-swatches" class="hidden items-center space-x-1.5 pl-1.5 border-l border-slate-700">
+                    <button class="w-4 h-4 rounded-full bg-rose-500 ring-2 ring-white/50 transition transform hover:scale-110 color-btn" data-color="rgba(244, 63, 94, 0.85)" title="Red Laser"></button>
+                    <button class="w-4 h-4 rounded-full bg-cyan-400 transition transform hover:scale-110 color-btn" data-color="rgba(34, 211, 238, 0.85)" title="Blue Laser"></button>
+                    <button class="w-4 h-4 rounded-full bg-emerald-400 transition transform hover:scale-110 color-btn" data-color="rgba(52, 211, 153, 0.85)" title="Green Laser"></button>
+                    <button class="w-4 h-4 rounded-full bg-amber-400 transition transform hover:scale-110 color-btn" data-color="rgba(251, 191, 36, 0.85)" title="Yellow Laser"></button>
+                    <button class="w-4 h-4 rounded-full bg-fuchsia-500 transition transform hover:scale-110 color-btn" data-color="rgba(217, 70, 239, 0.85)" title="Neon Pink Laser"></button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- Sidebar / Thumbnail Container -->
+        <aside id="sidebar" class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col hidden lg:flex z-10">
+            <div class="p-3 border-b border-slate-700 font-semibold text-sm text-slate-300 flex items-center justify-between">
+                <span>Document Thumbnails</span>
+                <span id="thumb-count" class="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-400">0 pages</span>
+            </div>
+            <div id="thumbnails-container" class="flex-1 overflow-y-auto p-3 space-y-3">
+                <!-- Thumbnails injected dynamically -->
+            </div>
+        </aside>
+
+        <!-- PDF Viewer Main Canvas Area -->
+        <main id="viewer-container" class="flex-1 bg-slate-950 overflow-auto relative flex flex-col items-center p-8">
+            
+            <!-- Initial Empty / Drag & Drop State -->
+            <div id="drop-zone" class="absolute inset-6 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center justify-center text-center p-8 bg-slate-900/40 backdrop-blur-sm transition hover:border-indigo-500 cursor-pointer z-20">
+                <div class="w-20 h-20 bg-indigo-600/10 text-indigo-400 rounded-full flex items-center justify-center mb-4 text-3xl shadow-inner">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <h2 class="text-xl font-bold text-slate-200 mb-2">Drag and drop your PDF here</h2>
+                <p class="text-slate-400 text-sm max-w-sm mb-6">Or browse local files to instantly view, navigate, zoom, and annotate with the fading laser pencil tool.</p>
+                <label class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-6 py-2.5 rounded-xl shadow-lg transition cursor-pointer">
+                    Browse PDF File
+                    <input type="file" id="dropzone-file-input" accept="application/pdf" class="hidden">
+                </label>
+            </div>
+
+            <!-- Canvas Wrapper for PDF Rendering & Laser Overlay with safe margins for scrolling -->
+            <div id="canvas-wrapper" class="relative shadow-2xl rounded bg-white hidden transition-all duration-150 my-auto mx-auto shrink-0">
+                <canvas id="pdf-canvas" class="block rounded shadow-md"></canvas>
+                <!-- Interactive Laser Drawing Canvas Overlay -->
+                <canvas id="laser-canvas" class="absolute inset-0 pointer-events-none rounded"></canvas>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Message Box Notification Modal -->
+    <div id="message-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden backdrop-blur-xs">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl text-center">
+            <div id="modal-icon" class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-4 text-xl">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3 id="modal-title" class="text-lg font-bold text-white mb-2">Notice</h3>
+            <p id="modal-message" class="text-sm text-slate-300 mb-6">An error occurred while loading the PDF document.</p>
+            <button id="modal-close" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-medium transition shadow">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        let pdfDoc = null,
+            pageNum = 1,
+            pageRendering = false,
+            pageNumPending = null,
+            scale = 1.25,
+            canvas = document.getElementById('pdf-canvas'),
+            ctx = canvas.getContext('2d'),
+            laserActive = false,
+            laserColor = 'rgba(244, 63, 94, 0.85)'; // Default red laser
+
+        // Laser pencil stroke state structures
+        let laserCanvas = document.getElementById('laser-canvas');
+        let laserCtx = laserCanvas.getContext('2d');
+        let strokes = []; // Array of active stroke segments { x, y, time, color, alpha }
+        let isDrawing = false;
+        let animationFrameId = null;
+
+        const fileUploadInput = document.getElementById('file-upload');
+        const dropzoneFileInput = document.getElementById('dropzone-file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+        const pageNumInput = document.getElementById('page-num');
+        const pageCountSpan = document.getElementById('page-count');
+        const prevPageBtn = document.getElementById('prev-page');
+        const nextPageBtn = document.getElementById('next-page');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const zoomResetBtn = document.getElementById('zoom-reset');
+        const zoomValSpan = document.getElementById('zoom-val');
+        const fitWidthBtn = document.getElementById('fit-width');
+        const fitScreenBtn = document.getElementById('fit-screen');
+        const laserToggleBtn = document.getElementById('laser-toggle');
+        const colorSwatchesContainer = document.getElementById('color-swatches');
+        const viewerContainer = document.getElementById('viewer-container');
+        const thumbnailsContainer = document.getElementById('thumbnails-container');
+        const thumbCountSpan = document.getElementById('thumb-count');
+
+        // Custom Message Box Function
+        function showMessage(title, message, isError = true) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            const iconDiv = document.getElementById('modal-icon');
+            if (isError) {
+                iconDiv.className = "w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-4 text-xl";
+                iconDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>';
+            } else {
+                iconDiv.className = "w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-4 text-xl";
+                iconDiv.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            }
+            document.getElementById('message-modal').classList.remove('hidden');
+        }
+
+        document.getElementById('modal-close').addEventListener('click', () => {
+            document.getElementById('message-modal').classList.add('hidden');
+        });
+
+        // Load PDF from ArrayBuffer or File
+        function loadPDFData(data) {
+            const loadingTask = pdfjsLib.getDocument({ data: data });
+            loadingTask.promise.then(function(pdfDoc_) {
+                pdfDoc = pdfDoc_;
+                pageCountSpan.textContent = pdfDoc.numPages;
+                thumbCountSpan.textContent = `${pdfDoc.numPages} pages`;
+                pageNum = 1;
+                
+                dropZone.classList.add('hidden');
+                canvasWrapper.classList.remove('hidden');
+
+                renderPage(pageNum);
+                buildThumbnails();
+            }).catch(function(error) {
+                console.error('Error loading PDF:', error);
+                showMessage('Invalid PDF', 'Could not parse the selected file. Please ensure it is a valid PDF document.');
+            });
+        }
+
+        // Handle File Selection
+        function handleFile(file) {
+            if (file && file.type === 'application/pdf') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    loadPDFData(new Uint8Array(e.target.result));
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                showMessage('Unsupported File', 'Please upload a valid PDF file.');
+            }
+        }
+
+        fileUploadInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) handleFile(e.target.files[0]);
+        });
+
+        dropzoneFileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) handleFile(e.target.files[0]);
+        });
+
+        // Drag and Drop listeners
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-500', 'bg-slate-900/80');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500', 'bg-slate-900/80');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500', 'bg-slate-900/80');
+            if (e.dataTransfer.files[0]) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Render Page Function
+        function renderPage(num) {
+            pageRendering = true;
+            pdfDoc.getPage(num).then(function(page) {
+                const viewport = page.getViewport({ scale: scale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                // Match overlay laser canvas size
+                laserCanvas.height = viewport.height;
+                laserCanvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+
+                const renderTask = page.render(renderContext);
+                renderTask.promise.then(function() {
+                    pageRendering = false;
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                });
+            });
+
+            pageNumInput.value = num;
+            updatePaginationButtons();
+            updateZoomDisplay();
+            highlightActiveThumbnail();
+            strokes = []; // Clear annotations on page turn
+        }
+
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        function updatePaginationButtons() {
+            prevPageBtn.disabled = pageNum <= 1;
+            nextPageBtn.disabled = pageNum >= pdfDoc.numPages;
+        }
+
+        function updateZoomDisplay() {
+            zoomValSpan.textContent = `${Math.round(scale * 100)}%`;
+        }
+
+        // Pagination Event Listeners
+        prevPageBtn.addEventListener('click', () => {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        });
+
+        nextPageBtn.addEventListener('click', () => {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        });
+
+        pageNumInput.addEventListener('change', (e) => {
+            let num = parseInt(e.target.value);
+            if (num >= 1 && num <= pdfDoc.numPages) {
+                pageNum = num;
+                queueRenderPage(pageNum);
+            } else {
+                pageNumInput.value = pageNum;
+            }
+        });
+
+        // Zoom Features
+        zoomInBtn.addEventListener('click', () => {
+            if (scale < 4.0) {
+                scale += 0.25;
+                queueRenderPage(pageNum);
+            }
+        });
+
+        zoomOutBtn.addEventListener('click', () => {
+            if (scale > 0.5) {
+                scale -= 0.25;
+                queueRenderPage(pageNum);
+            }
+        });
+
+        zoomResetBtn.addEventListener('click', () => {
+            scale = 1.25;
+            queueRenderPage(pageNum);
+        });
+
+        // Fit to Width & Fit to Screen Features
+        fitWidthBtn.addEventListener('click', () => {
+            if (!pdfDoc) return;
+            pdfDoc.getPage(pageNum).then(function(page) {
+                const unscaledViewport = page.getViewport({ scale: 1.0 });
+                // Account for viewer padding (64px total horizontal padding)
+                const containerWidth = viewerContainer.clientWidth - 64;
+                scale = containerWidth / unscaledViewport.width;
+                queueRenderPage(pageNum);
+            });
+        });
+
+        fitScreenBtn.addEventListener('click', () => {
+            if (!pdfDoc) return;
+            pdfDoc.getPage(pageNum).then(function(page) {
+                const unscaledViewport = page.getViewport({ scale: 1.0 });
+                const containerWidth = viewerContainer.clientWidth - 64;
+                const containerHeight = viewerContainer.clientHeight - 64;
+                const scaleWidth = containerWidth / unscaledViewport.width;
+                const scaleHeight = containerHeight / unscaledViewport.height;
+                scale = Math.min(scaleWidth, scaleHeight);
+                queueRenderPage(pageNum);
+            });
+        });
+
+        // Laser Pencil Tool Toggle & Color Customization
+        laserToggleBtn.addEventListener('click', () => {
+            laserActive = !laserActive;
+            if (laserActive) {
+                laserToggleBtn.classList.add('bg-rose-600/20', 'border-rose-500', 'text-rose-300', 'shadow-md');
+                laserToggleBtn.classList.remove('bg-slate-800', 'border-slate-600', 'text-slate-300');
+                colorSwatchesContainer.classList.remove('hidden');
+                colorSwatchesContainer.classList.add('flex');
+                laserCanvas.style.pointerEvents = 'auto';
+                laserCanvas.classList.add('pen-cursor');
+            } else {
+                laserToggleBtn.classList.remove('bg-rose-600/20', 'border-rose-500', 'text-rose-300', 'shadow-md');
+                laserToggleBtn.classList.add('bg-slate-800', 'border-slate-600', 'text-slate-300');
+                colorSwatchesContainer.classList.add('hidden');
+                colorSwatchesContainer.classList.remove('flex');
+                laserCanvas.style.pointerEvents = 'none';
+                laserCanvas.classList.remove('pen-cursor');
+                isDrawing = false;
+            }
+        });
+
+        // Color selection buttons
+        document.querySelectorAll('.color-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                laserColor = btn.getAttribute('data-color');
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-4', 'ring-white'));
+                btn.classList.add('ring-4', 'ring-white');
+            });
+        });
+
+        // Laser Drawing and Fading Animation Loop
+        function getCanvasCoordinates(e) {
+            const rect = laserCanvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            return {
+                x: (clientX - rect.left) * (laserCanvas.width / rect.width),
+                y: (clientY - rect.top) * (laserCanvas.height / rect.height)
+            };
+        }
+
+        laserCanvas.addEventListener('mousedown', (e) => {
+            if (!laserActive) return;
+            isDrawing = true;
+            const pos = getCanvasCoordinates(e);
+            strokes.push({
+                x: pos.x,
+                y: pos.y,
+                time: Date.now(),
+                color: laserColor,
+                isStart: true
+            });
+        });
+
+        laserCanvas.addEventListener('mousemove', (e) => {
+            if (!laserActive || !isDrawing) return;
+            const pos = getCanvasCoordinates(e);
+            strokes.push({
+                x: pos.x,
+                y: pos.y,
+                time: Date.now(),
+                color: laserColor,
+                isStart: false
+            });
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        // Touch support for mobile devices
+        laserCanvas.addEventListener('touchstart', (e) => {
+            if (!laserActive) return;
+            isDrawing = true;
+            const pos = getCanvasCoordinates(e);
+            strokes.push({
+                x: pos.x,
+                y: pos.y,
+                time: Date.now(),
+                color: laserColor,
+                isStart: true
+            });
+            e.preventDefault();
+        });
+
+        laserCanvas.addEventListener('touchmove', (e) => {
+            if (!laserActive || !isDrawing) return;
+            const pos = getCanvasCoordinates(e);
+            strokes.push({
+                x: pos.x,
+                y: pos.y,
+                time: Date.now(),
+                color: laserColor,
+                isStart: false
+            });
+            e.preventDefault();
+        });
+
+        window.addEventListener('touchend', () => {
+            isDrawing = false;
+        });
+
+        // Animation render loop handling fadeout over 2.5 seconds
+        function animateLaserStrokes() {
+            laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
+            const now = Date.now();
+            const fadeDuration = 2500; // Lines vanish after 2.5 seconds
+
+            // Filter out fully faded strokes
+            strokes = strokes.filter(s => (now - s.time) < fadeDuration);
+
+            if (strokes.length > 0) {
+                laserCtx.lineCap = 'round';
+                laserCtx.lineJoin = 'round';
+                laserCtx.lineWidth = 4;
+
+                for (let i = 0; i < strokes.length; i++) {
+                    const stroke = strokes[i];
+                    const age = now - stroke.time;
+                    const opacity = Math.max(0, 1 - (age / fadeDuration));
+
+                    if (stroke.isStart || i === 0 || strokes[i-1].isStart) {
+                        continue;
+                    }
+
+                    // Extract base rgb values from rgba string
+                    laserCtx.strokeStyle = stroke.color.replace(/[\d\.]+\)$/g, `${opacity * 0.85})`);
+                    laserCtx.shadowColor = stroke.color.replace(/[\d\.]+\)$/g, `${opacity})`);
+                    laserCtx.shadowBlur = 10; // Glowing highlighter trail
+
+                    laserCtx.beginPath();
+                    laserCtx.moveTo(strokes[i-1].x, strokes[i-1].y);
+                    laserCtx.lineTo(stroke.x, stroke.y);
+                    laserCtx.stroke();
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(animateLaserStrokes);
+        }
+
+        // Start the laser animation render loop
+        animateLaserStrokes();
+
+        // Generate Sidebar Thumbnails
+        function buildThumbnails() {
+            thumbnailsContainer.innerHTML = '';
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                const thumbItem = document.createElement('div');
+                thumbItem.className = `group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-transparent hover:bg-slate-700/50 ${i === pageNum ? 'bg-indigo-600/20 border-indigo-500/50 text-white' : 'text-slate-400'}`;
+                thumbItem.dataset.page = i;
+                
+                thumbItem.innerHTML = `
+                    <div class="w-8 h-10 bg-slate-900 rounded border border-slate-700 flex items-center justify-center text-xs font-semibold shrink-0 group-hover:border-indigo-400 transition">${i}</div>
+                    <div class="text-xs font-medium truncate">Page ${i}</div>
+                `;
+
+                thumbItem.addEventListener('click', () => {
+                    pageNum = i;
+                    queueRenderPage(pageNum);
+                });
+
+                thumbnailsContainer.appendChild(thumbItem);
+            }
+        }
+
+        function highlightActiveThumbnail() {
+            const thumbs = thumbnailsContainer.children;
+            for (let t of thumbs) {
+                if (parseInt(t.dataset.page) === pageNum) {
+                    t.className = "group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-indigo-500/50 bg-indigo-600/20 text-white shadow-xs";
+                } else {
+                    t.className = "group flex items-center space-x-3 p-2 rounded-xl cursor-pointer transition border border-transparent hover:bg-slate-700/50 text-slate-400";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
